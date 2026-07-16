@@ -153,11 +153,14 @@ body{
 }
 .calendar-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px;}
 .calendar-month{font-family:var(--font-display); font-weight:800; font-size:16px; letter-spacing:.5px; text-transform:uppercase;}
-.calendar-sub{font-size:11px; color:var(--text-faint);}
+.calendar-sub-group{text-align:right;}
+.calendar-streak{font-size:12px; font-weight:800; color:var(--accent-hi);}
+.calendar-sub{font-size:11px; color:var(--text-faint); margin-top:1px;}
 .cal-weekdays{display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:6px;}
 .cal-weekdays div{text-align:center; font-size:10px; color:var(--text-faint); letter-spacing:.5px; text-transform:uppercase;}
 .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px;}
 .cal-day{
+  position:relative;
   aspect-ratio:1; border-radius:9px; display:flex; align-items:center; justify-content:center;
   font-family:var(--font-mono); font-size:12px; color:var(--text-dim); background:var(--bg-card-2);
   border:1px solid transparent;
@@ -165,6 +168,16 @@ body{
 .cal-day.empty{background:none;}
 .cal-day.done{background:var(--green); color:#0C2318; font-weight:700;}
 .cal-day.today{border-color:var(--accent);}
+.cal-pr-star{
+  position:absolute; top:-5px; right:-5px; width:14px; height:14px;
+  color:var(--accent-hi); filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));
+}
+.cal-pr-star svg{width:100%; height:100%;}
+.pr-star-inline{
+  display:inline-flex; width:13px; height:13px; color:var(--accent-hi);
+  margin-right:5px; vertical-align:-2px;
+}
+.pr-star-inline svg{width:100%; height:100%;}
 
 /* Upcoming plans */
 .plan-row{
@@ -344,6 +357,8 @@ body{
   margin:20px 20px 0; background:var(--bg-card); border:1px solid var(--border);
   border-radius:var(--radius-lg); padding:16px 8px 8px;
 }
+.chart-title{font-weight:800; font-size:13.5px; padding:0 12px 4px; letter-spacing:.2px;}
+.chart-subtle{font-weight:500; color:var(--text-faint); font-size:11px;}
 .chart-legend{display:flex; gap:16px; padding:0 12px 10px; font-size:11px; color:var(--text-faint);}
 .chart-legend span{display:inline-flex; align-items:center; gap:5px;}
 .chart-legend i{width:8px;height:8px;border-radius:50%; display:inline-block;}
@@ -583,12 +598,22 @@ function deleteWorkout(workoutId){
   render();
 }
 
+function oneRepMax(weight, firstSetReps){
+  if(!weight || !firstSetReps) return 0;
+  const denom = 1.0278 - 0.0278 * firstSetReps;
+  if(denom <= 0.05) return weight; // guard against absurd high-rep denominators
+  return weight / denom;
+}
+
 function getExerciseHistory(exId){
   const rows = [];
   const sorted = [...DATA.workouts].sort((a,b)=> new Date(a.date)-new Date(b.date));
   sorted.forEach(w=>{
     w.entries.filter(e=>e.exId===exId && e.status !== null).forEach(e=>{
-      rows.push({ date:w.date, weight:e.weight, reps:e.reps, volume:e.volume, status:e.status });
+      rows.push({
+        wId:w.id, date:w.date, weight:e.weight, reps:e.reps, volume:e.volume, status:e.status,
+        oneRM: oneRepMax(e.weight, e.reps[0])
+      });
     });
   });
   rows.forEach((r,i)=> r.n = i+1);
@@ -608,6 +633,51 @@ function getSuggestedWeight(exId){
   if(last.status === "green") w += ex.increment;
   else if(last.status === "red") w -= ex.increment;
   return { weight: Math.max(w,0), basedOn:last };
+}
+
+/* ---- Streak ---- */
+function getCurrentStreak(){
+  const completed = getCompletedDatesSet();
+  let streak = 0;
+  let cursor = new Date();
+  if(!completed.has(dateKeyLocal(cursor))){
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  while(completed.has(dateKeyLocal(cursor))){
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+/* ---- Personal Records ----
+   A PR is marked the first time an exercise entry's volume exceeds every
+   prior completed entry for that same exercise (chronologically). */
+function getAllPRKeys(){
+  const prSet = new Set();
+  const exIds = new Set();
+  DATA.workouts.forEach(w => w.entries.forEach(e => { if(e.status !== null) exIds.add(e.exId); }));
+  exIds.forEach(exId=>{
+    const hist = getExerciseHistory(exId);
+    let runningMax = 0;
+    hist.forEach(row=>{
+      if(row.volume > runningMax) prSet.add(`${row.wId}::${exId}`);
+      runningMax = Math.max(runningMax, row.volume);
+    });
+  });
+  return prSet;
+}
+function workoutHasPR(w, prSet){
+  return w.entries.some(e => prSet.has(`${w.id}::${e.exId}`));
+}
+function getPRDatesSet(prSet){
+  const dates = new Set();
+  DATA.workouts.forEach(w=>{
+    w.entries.forEach(e=>{
+      if(prSet.has(`${w.id}::${e.exId}`)) dates.add(dateKeyLocal(new Date(w.date)));
+    });
+  });
+  return dates;
 }
 
 function fmtDate(iso){
@@ -640,6 +710,7 @@ function render(){
   if(route.name === "home") html = viewHome();
   else if(route.name === "log") html = viewLog();
   else if(route.name === "progress") html = viewProgressList();
+  else if(route.name === "session") html = viewSessionDetail(route.workoutId);
   else if(route.name === "detail") html = viewExerciseDetail(route.exId);
   else if(route.name === "manage") html = viewManage();
 
@@ -657,7 +728,8 @@ const ICONS = {
   plate:`<svg class="plate-icon" viewBox="0 0 32 32" fill="none"><rect x="4" y="12" width="24" height="8" rx="2.5" fill="var(--accent)"/><rect x="1" y="8" width="5" height="16" rx="2" fill="var(--accent-hi)"/><rect x="26" y="8" width="5" height="16" rx="2" fill="var(--accent-hi)"/></svg>`,
   trash:`<svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14M10 7V5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2M7 7l1 13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   download:`<svg viewBox="0 0 24 24" fill="none"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 19h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-  upload:`<svg viewBox="0 0 24 24" fill="none"><path d="M12 15V4m0 0l-4 4m4-4l4 4M5 19h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+  upload:`<svg viewBox="0 0 24 24" fill="none"><path d="M12 15V4m0 0l-4 4m4-4l4 4M5 19h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  star:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.9 6.2 6.6.8-4.9 4.6 1.3 6.7L12 17.6l-5.9 3.2 1.3-6.7-4.9-4.6 6.6-.8z"/></svg>`
 };
 
 /* ============ HOME ============ */
@@ -667,8 +739,10 @@ function renderCalendar(){
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month+1, 0).getDate();
   const completed = getCompletedDatesSet();
+  const prDates = getPRDatesSet(getAllPRKeys());
   const todayKey = todayStr();
   const monthName = now.toLocaleDateString(undefined, {month:"long", year:"numeric"});
+  const streak = getCurrentStreak();
 
   let cells = "";
   for(let i=0;i<firstDay;i++) cells += `<div class="cal-day empty"></div>`;
@@ -677,14 +751,18 @@ function renderCalendar(){
     const classes = ["cal-day"];
     if(completed.has(key)) classes.push("done");
     if(key === todayKey) classes.push("today");
-    cells += `<div class="${classes.join(' ')}">${d}</div>`;
+    const star = prDates.has(key) ? `<span class="cal-pr-star">${ICONS.star}</span>` : "";
+    cells += `<div class="${classes.join(' ')}">${star}${d}</div>`;
   }
 
   return `
     <div class="calendar-card">
       <div class="calendar-head">
         <div class="calendar-month">${monthName}</div>
-        <div class="calendar-sub">${completed.size} day${completed.size===1?"":"s"} trained</div>
+        <div class="calendar-sub-group">
+          ${streak > 0 ? `<div class="calendar-streak">🔥 ${streak} day${streak===1?"":"s"}</div>` : ""}
+          <div class="calendar-sub">${completed.size} day${completed.size===1?"":"s"} trained</div>
+        </div>
       </div>
       <div class="cal-weekdays"><div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div></div>
       <div class="cal-grid">${cells}</div>
@@ -698,6 +776,7 @@ function viewHome(){
     .sort((a,b)=> new Date(a.date)-new Date(b.date));
   const recent = [...completedWorkouts].sort((a,b)=> new Date(b.date)-new Date(a.date)).slice(0,6);
   const today = new Date().toLocaleDateString(undefined,{weekday:"long", month:"long", day:"numeric"});
+  const prSet = getAllPRKeys();
 
   let cards = "";
   for(const type in TYPE_META){
@@ -734,14 +813,15 @@ function viewHome(){
       const totalVol = w.entries.reduce((s,e)=>s+e.volume,0);
       const worstStatus = w.entries.some(e=>e.status==="red") ? "red" : (w.entries.some(e=>e.status==="orange") ? "orange" : "green");
       const dotColor = worstStatus === "green" ? "var(--green)" : worstStatus === "orange" ? "var(--orange)" : "var(--red)";
+      const isPR = workoutHasPR(w, prSet);
       sessions += `
         <div class="session-row">
           <div class="session-dot" style="background:${dotColor}"></div>
-          <div class="session-main" onclick="nav({name:'progress'})">
-            <div class="session-type">${TYPE_META[w.type].label} · ${w.entries.length} exercise${w.entries.length>1?"s":""}</div>
+          <div class="session-main" onclick="nav({name:'session', workoutId:'${w.id}'})">
+            <div class="session-type">${isPR ? `<span class="pr-star-inline">${ICONS.star}</span>` : ""}${TYPE_META[w.type].label} · ${w.entries.length} exercise${w.entries.length>1?"s":""}</div>
             <div class="session-date">${fmtDate(w.date)}</div>
           </div>
-          <div class="session-vol" onclick="nav({name:'progress'})">${totalVol.toLocaleString()}<span>lbs vol.</span></div>
+          <div class="session-vol" onclick="nav({name:'session', workoutId:'${w.id}'})">${totalVol.toLocaleString()}<span>lbs vol.</span></div>
           <button class="session-del" onclick="event.stopPropagation(); deleteWorkout('${w.id}')" aria-label="Delete session">${ICONS.trash}</button>
         </div>`;
     });
@@ -1046,7 +1126,7 @@ function viewProgressList(){
       const h = getExerciseHistory(ex.id);
       const last = h.length ? h[h.length-1] : null;
       blocks += `
-        <div class="ex-row" onclick="nav({name:'detail', exId:'${ex.id}'})">
+        <div class="ex-row" onclick="detailBackTarget={name:'progress'}; nav({name:'detail', exId:'${ex.id}'})">
           <div>
             <div class="en">${ex.name}</div>
             <div class="es">${last ? `${h.length} session${h.length>1?"s":""} · last ${last.weight} lbs` : "No sessions yet"}</div>
@@ -1068,6 +1148,46 @@ function viewProgressList(){
   `;
 }
 
+/* ============ SESSION DETAIL ============ */
+let detailBackTarget = {name:"progress"};
+function viewSessionDetail(workoutId){
+  const w = DATA.workouts.find(w=>w.id===workoutId);
+  if(!w) return `<div class="empty-state" style="margin:20px;">Session not found.</div>`;
+  const prSet = getAllPRKeys();
+  const totalVol = w.entries.reduce((s,e)=>s+e.volume,0);
+
+  let rows = "";
+  w.entries.forEach(e=>{
+    const isPR = prSet.has(`${w.id}::${e.exId}`);
+    const color = e.status === "green" ? "var(--green)" : e.status === "orange" ? "var(--orange)" : "var(--red)";
+    rows += `
+      <div class="ex-row" onclick="detailBackTarget={name:'session', workoutId:'${w.id}'}; nav({name:'detail', exId:'${e.exId}'})">
+        <div>
+          <div class="en">${isPR ? `<span class="pr-star-inline">${ICONS.star}</span>` : ""}${e.name}</div>
+          <div class="es">${e.weight} lbs · ${e.reps.join("/")} reps · ${e.volume.toLocaleString()} lbs vol.</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div class="session-dot" style="background:${color}"></div>
+          <span class="chev">›</span>
+        </div>
+      </div>`;
+  });
+
+  return `
+    <div class="bar-top">
+      <div class="back-btn" onclick="nav({name:'home'})">${ICONS.back}</div>
+      <div class="bar-title">${TYPE_META[w.type].label}</div>
+    </div>
+    <div class="stat-strip">
+      <div class="stat-chip"><div class="sv">${fmtDate(w.date)}</div><div class="sl">Date</div></div>
+      <div class="stat-chip"><div class="sv">${w.entries.length}</div><div class="sl">Exercises</div></div>
+      <div class="stat-chip"><div class="sv">${totalVol.toLocaleString()}</div><div class="sl">Total Volume</div></div>
+    </div>
+    <div class="section-label" style="padding:0 20px; margin:22px 0 8px;">Tap an exercise for its full progression</div>
+    ${rows}
+  `;
+}
+
 /* ============ EXERCISE DETAIL ============ */
 let selectedPoint = null;
 function viewExerciseDetail(exId){
@@ -1077,6 +1197,7 @@ function viewExerciseDetail(exId){
   const suggestion = getSuggestedWeight(exId);
   const last = history.length ? history[history.length-1] : null;
   const best = history.length ? Math.max(...history.map(h=>h.volume)) : 0;
+  const prSet = getAllPRKeys();
 
   const stats = `
     <div class="stat-strip">
@@ -1087,16 +1208,22 @@ function viewExerciseDetail(exId){
   `;
 
   const chart = history.length
-    ? renderChart(history)
+    ? renderChart(history, "volume")
     : `<div class="empty-state" style="margin:8px;">Log this exercise to start seeing your progression chart here.</div>`;
+
+  const oneRMChart = history.length
+    ? renderChart(history, "oneRM")
+    : `<div class="empty-state" style="margin:8px;">Log this exercise to start seeing your 1RM chart here.</div>`;
 
   let pointDetail = "";
   if(selectedPoint !== null && history[selectedPoint]){
     const p = history[selectedPoint];
+    const isPR = prSet.has(`${p.wId}::${exId}`);
     pointDetail = `
       <div class="point-detail">
-        <b>${fmtDateFull(p.date)}</b><br>
+        <b>${fmtDateFull(p.date)}</b>${isPR ? ` <span class="pr-star-inline">${ICONS.star}</span><b>Personal Record</b>` : ""}<br>
         ${p.weight} lbs × [${p.reps.join(", ")}] reps — <b>${p.volume.toLocaleString()} lbs</b> total volume<br>
+        Estimated 1RM: <b>${Math.round(p.oneRM).toLocaleString()} lbs</b><br>
         ${STATUS_LABEL[p.status].text}
       </div>`;
   }
@@ -1104,28 +1231,34 @@ function viewExerciseDetail(exId){
   let rows = "";
   [...history].reverse().forEach((h)=>{
     const color = h.status === "green" ? "var(--green)" : h.status === "orange" ? "var(--orange)" : "var(--red)";
+    const isPR = prSet.has(`${h.wId}::${exId}`);
     rows += `
       <div class="hrow">
         <div class="hdot" style="background:${color}"></div>
         <div class="hdate">${fmtDate(h.date)}</div>
-        <div class="hreps">${h.weight} lbs · ${h.reps.join("/")}</div>
+        <div class="hreps">${isPR ? `<span class="pr-star-inline">${ICONS.star}</span>` : ""}${h.weight} lbs · ${h.reps.join("/")}</div>
         <div class="hvol">${h.volume.toLocaleString()}</div>
       </div>`;
   });
 
   return `
     <div class="bar-top">
-      <div class="back-btn" onclick="selectedPoint=null; nav({name:'progress'})">${ICONS.back}</div>
+      <div class="back-btn" onclick="selectedPoint=null; nav(detailBackTarget)">${ICONS.back}</div>
       <div class="bar-title">${ex.name}</div>
     </div>
     ${stats}
     <div class="chart-card">
+      <div class="chart-title">Volume per Session</div>
       <div class="chart-legend">
         <span><i style="background:var(--green)"></i>Increase</span>
         <span><i style="background:var(--orange)"></i>Maintain</span>
         <span><i style="background:var(--red)"></i>Decrease</span>
       </div>
       ${chart}
+    </div>
+    <div class="chart-card" style="margin-top:14px;">
+      <div class="chart-title">Estimated 1-Rep Max <span class="chart-subtle">(Brzycki · first set)</span></div>
+      ${oneRMChart}
     </div>
     ${pointDetail ? `<div style="margin-top:12px;">${pointDetail}</div>` : ""}
     <div class="history-table">
@@ -1135,21 +1268,21 @@ function viewExerciseDetail(exId){
   `;
 }
 
-function renderChart(history){
+function renderChart(history, valueKey){
   const W = 320, H = 190;
   const padL = 34, padR = 14, padT = 14, padB = 26;
   const chartW = W - padL - padR, chartH = H - padT - padB;
   const n = history.length;
-  const maxVol = Math.max(...history.map(h=>h.volume)) * 1.15 || 1;
+  const maxVal = Math.max(...history.map(h=>h[valueKey])) * 1.15 || 1;
 
   const xFor = i => n <= 1 ? padL + chartW/2 : padL + (i/(n-1)) * chartW;
-  const yFor = v => padT + chartH - (v/maxVol) * chartH;
+  const yFor = v => padT + chartH - (v/maxVal) * chartH;
 
   const colorFor = s => s==="green" ? "var(--green)" : s==="orange" ? "var(--orange)" : "var(--red)";
 
   let path = "";
   history.forEach((h,i)=>{
-    const x = xFor(i), y = yFor(h.volume);
+    const x = xFor(i), y = yFor(h[valueKey]);
     path += (i===0 ? `M${x},${y}` : ` L${x},${y}`);
   });
 
@@ -1157,14 +1290,14 @@ function renderChart(history){
   let grid = "";
   for(let g=0; g<=2; g++){
     const y = padT + (chartH/2)*g;
-    const val = Math.round(maxVol - (maxVol/2)*g);
+    const val = Math.round(maxVal - (maxVal/2)*g);
     grid += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="var(--border-soft)" stroke-width="1"/>`;
     grid += `<text x="${padL-6}" y="${y+3}" text-anchor="end" font-size="8.5" fill="var(--text-faint)" font-family="var(--font-mono)">${val>=1000?(val/1000).toFixed(1)+'k':val}</text>`;
   }
 
   let dots = "";
   history.forEach((h,i)=>{
-    const x = xFor(i), y = yFor(h.volume);
+    const x = xFor(i), y = yFor(h[valueKey]);
     const c = colorFor(h.status);
     dots += `
       <circle cx="${x}" cy="${y}" r="9" fill="${c}" fill-opacity="0.18" />
@@ -1293,7 +1426,7 @@ function importDataFile(input){
 
 /* ============ NAV / TOAST ============ */
 function viewBottomNav(){
-  const active = route.name === "log" ? "home" : (route.name === "detail" ? "progress" : route.name);
+  const active = (route.name === "log" || route.name === "session") ? "home" : (route.name === "detail" ? "progress" : route.name);
   return `
     <div class="bottom-nav">
       <div class="bottom-nav-inner">
