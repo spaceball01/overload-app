@@ -1,4 +1,4 @@
-const CACHE = "overload-v1";
+const CACHE = "overload-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -24,17 +24,17 @@ self.addEventListener("activate", (e) => {
   self.clients.claim();
 });
 
+// Network-first: always try to fetch the latest version when online (so
+// app updates actually show up), and only fall back to the cached copy
+// when there's no connection.
 self.addEventListener("fetch", (e) => {
   e.respondWith(
-    caches.match(e.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(e.request)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((cache) => cache.put(e.request, copy));
-          return res;
-        })
-        .catch(() => cached);
-    })
+    fetch(e.request)
+      .then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE).then((cache) => cache.put(e.request, copy));
+        return res;
+      })
+      .catch(() => caches.match(e.request))
   );
 });
