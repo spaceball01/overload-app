@@ -244,24 +244,16 @@ body{
   font-weight:700; margin:16px 2px 8px;
 }
 .set-line{
-  display:flex; align-items:center; gap:8px; margin-bottom:8px;
+  display:flex; align-items:center; gap:6px; margin-bottom:8px;
 }
 .set-line-label{
-  width:40px; flex-shrink:0; font-size:11px; color:var(--text-faint);
+  width:30px; flex-shrink:0; font-size:11px; color:var(--text-faint);
   font-family:var(--font-mono); font-weight:700;
 }
-.set-line-weight{display:flex; align-items:center; gap:6px; flex:1.3;}
-.mini-stepper{
-  width:26px; height:26px; border-radius:50%; flex-shrink:0; padding:0;
-  background:var(--bg-card-2); border:1px solid var(--border);
-  color:var(--accent-hi); font-size:15px; font-weight:700;
-  display:flex; align-items:center; justify-content:center; cursor:pointer;
-}
-.mini-stepper:active{background:var(--accent-soft);}
 .mini-weight-input{
   flex:1; min-width:0; background:var(--bg-card-2); border:1px solid var(--border);
   border-radius:8px; color:var(--text); text-align:center;
-  font-family:var(--font-mono); font-size:15px; font-weight:700; padding:7px 2px;
+  font-family:var(--font-mono); font-size:15px; font-weight:700; padding:9px 2px;
   -moz-appearance:textfield;
 }
 .mini-weight-input::-webkit-outer-spin-button,
@@ -270,15 +262,34 @@ body{
 .mini-reps-input{
   flex:1; min-width:0; background:var(--bg-card-2); border:1px solid var(--border);
   border-radius:8px; color:var(--text); text-align:center;
-  font-family:var(--font-mono); font-size:15px; font-weight:700; padding:7px 2px;
+  font-family:var(--font-mono); font-size:15px; font-weight:700; padding:9px 2px;
 }
 .mini-reps-input:focus{outline:none; border-color:var(--accent);}
+.set-check{
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  width:26px; height:26px; position:relative; cursor:pointer;
+}
+.set-check input[type=checkbox]{
+  position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; cursor:pointer;
+}
+.set-check-box{
+  width:24px; height:24px; border-radius:7px; flex-shrink:0;
+  border:1.5px solid var(--border); background:var(--bg-card-2);
+  display:flex; align-items:center; justify-content:center;
+  transition:background .15s ease, border-color .15s ease;
+}
+.set-check-box::after{
+  content:""; width:11px; height:6px; opacity:0;
+  border-left:2px solid #1B1500; border-bottom:2px solid #1B1500;
+  transform:rotate(-45deg) translate(1px,-1px);
+}
+.set-check input:checked + .set-check-box{background:var(--green); border-color:var(--green);}
+.set-check input:checked + .set-check-box::after{opacity:1; border-color:#0C2318;}
 .set-line-remove{
-  width:24px; height:24px; flex-shrink:0; border-radius:50%; padding:0;
+  width:22px; height:22px; flex-shrink:0; border-radius:50%; padding:0;
   background:none; border:none; color:var(--text-faint); font-size:13px; cursor:pointer;
 }
 .set-line-remove:active{color:var(--red);}
-.set-line-spacer{width:24px; flex-shrink:0;}
 .add-warmup-btn{
   display:block; width:100%; text-align:center; margin:2px 0 4px;
   padding:9px; border:1px dashed var(--border); border-radius:10px;
@@ -569,7 +580,7 @@ const STATUS_LABEL = {
 };
 
 function upsertWorkout(existingId, type, dateStr, entries){
-  const allFilled = entries.every(en => en.sets.every(s => s.reps !== null));
+  const allFilled = entries.every(en => en.sets.every(s => s.done && s.reps !== null));
   const status = allFilled ? "completed" : "planned";
   const iso = new Date(dateStr + "T12:00:00").toISOString();
   if(existingId){
@@ -942,10 +953,11 @@ function continuePlanned(workoutId){
   sessionType = w.type;
   sessionDate = dateKeyLocal(new Date(w.date));
   editingWorkoutId = w.id;
+  const withDone = s => ({...s, done: s.done !== undefined ? s.done : (s.reps !== null && s.reps !== undefined)});
   sessionEntries = w.entries.map(e => ({
     exId: e.exId, name: e.name,
-    warmups: (e.warmups || []).map(s => ({...s})),
-    sets: normalizeEntrySets(e).map(s => ({...s}))
+    warmups: (e.warmups || []).map(withDone),
+    sets: normalizeEntrySets(e).map(withDone)
   }));
   nav({name:"log"});
 }
@@ -955,19 +967,20 @@ function renderSetLine(idx, group, si, set, label, removable){
   return `
     <div class="set-line">
       <div class="set-line-label">${label}</div>
-      <div class="set-line-weight">
-        <button class="mini-stepper" onclick="stepSetWeight(${idx}, '${group}', ${si}, -1)">−</button>
-        <input type="number" inputmode="decimal" class="mini-weight-input" id="weight-input-${group}-${idx}-${si}" placeholder="0"
-          value="${set.weight === 0 ? "" : set.weight}"
-          onfocus="this.select()"
-          oninput="setSetWeight(${idx}, '${group}', ${si}, this.value)">
-        <button class="mini-stepper" onclick="stepSetWeight(${idx}, '${group}', ${si}, 1)">+</button>
-      </div>
+      <input type="number" inputmode="decimal" class="mini-weight-input" id="weight-input-${group}-${idx}-${si}" placeholder="0"
+        value="${set.weight === 0 ? "" : set.weight}"
+        onfocus="this.select()"
+        oninput="setSetWeight(${idx}, '${group}', ${si}, this.value)">
       <input type="number" inputmode="numeric" class="mini-reps-input" placeholder="reps" value="${set.reps ?? ""}"
         oninput="setSetReps(${idx}, '${group}', ${si}, this.value)">
+      <label class="set-check" aria-label="Mark set complete">
+        <input type="checkbox" id="check-${group}-${idx}-${si}" ${set.done ? "checked" : ""}
+          onchange="toggleSetDone(${idx}, '${group}', ${si}, this.checked)">
+        <span class="set-check-box"></span>
+      </label>
       ${removable
         ? `<button class="set-line-remove" onclick="removeWarmup(${idx}, ${si})" aria-label="Remove warm-up set">✕</button>`
-        : `<span class="set-line-spacer"></span>`}
+        : ``}
     </div>
   `;
 }
@@ -984,8 +997,8 @@ function viewLog(){
       : `First time logging this lift`;
 
     const repsNow = entry.sets.map(s=>s.reps);
-    const filled = repsNow.every(r => r !== null && r !== "");
-    let statusHtml = `<div class="status-preview status-neutral" id="status-${idx}"><span class="sw"></span>Enter all 3 sets to see status</div>`;
+    const filled = entry.sets.every(s => s.done && s.reps !== null && s.reps !== "");
+    let statusHtml = `<div class="status-preview status-neutral" id="status-${idx}"><span class="sw"></span>Check off all 3 sets to see status</div>`;
     if(filled){
       const status = computeStatus(repsNow.map(Number));
       statusHtml = `<div class="status-preview status-${status}" id="status-${idx}"><span class="sw"></span>${STATUS_LABEL[status].text}</div>`;
@@ -1020,7 +1033,7 @@ function viewLog(){
   });
 
   const hasEntries = sessionEntries.length > 0;
-  const allFilled = hasEntries && sessionEntries.every(e => e.sets.every(s=>s.reps!==null && s.reps!==""));
+  const allFilled = hasEntries && sessionEntries.every(e => e.sets.every(s=>s.done && s.reps!==null && s.reps!==""));
   const btnLabel = allFilled ? "Finish Workout" : "Save Plan for Later";
 
   return `
@@ -1050,19 +1063,23 @@ function moveEntry(idx, dir){
   render();
 }
 
-function stepSetWeight(idx, group, si, dir){
-  const ex = findExercise(sessionEntries[idx].exId);
-  const inc = ex ? ex.increment : 5;
-  const set = sessionEntries[idx][group][si];
-  set.weight = Math.max(0, +(set.weight) + dir*inc);
-  const input = document.getElementById(`weight-input-${group}-${idx}-${si}`);
-  if(input) input.value = set.weight === 0 ? "" : set.weight;
-}
 function setSetWeight(idx, group, si, val){
   sessionEntries[idx][group][si].weight = val === "" ? 0 : Number(val);
 }
 function setSetReps(idx, group, si, val){
-  sessionEntries[idx][group][si].reps = val === "" ? "" : Math.max(0, Number(val));
+  const set = sessionEntries[idx][group][si];
+  set.reps = val === "" ? "" : Math.max(0, Number(val));
+  // Typing reps auto-checks the set as complete; clearing reps un-checks it.
+  set.done = !(set.reps === "" || set.reps === null);
+  const cb = document.getElementById(`check-${group}-${idx}-${si}`);
+  if(cb) cb.checked = set.done;
+  if(group === "sets"){
+    updateStatusPreview(idx);
+    updateFinishButton();
+  }
+}
+function toggleSetDone(idx, group, si, checked){
+  sessionEntries[idx][group][si].done = checked;
   if(group === "sets"){
     updateStatusPreview(idx);
     updateFinishButton();
@@ -1072,7 +1089,7 @@ function addWarmup(idx){
   const entry = sessionEntries[idx];
   const baseWeight = entry.sets[0] ? entry.sets[0].weight : 0;
   const suggested = Math.round((baseWeight * 0.5) / 5) * 5;
-  entry.warmups.push({ weight: suggested, reps: null });
+  entry.warmups.push({ weight: suggested, reps: null, done:false });
   render();
 }
 function removeWarmup(idx, si){
@@ -1084,21 +1101,21 @@ function updateStatusPreview(idx){
   const el = document.getElementById(`status-${idx}`);
   if(!el) return;
   const reps = entry.sets.map(s=>s.reps);
-  const filled = reps.every(r => r !== null && r !== "");
+  const filled = entry.sets.every(s => s.done && s.reps !== null && s.reps !== "");
   if(filled){
     const status = computeStatus(reps.map(Number));
     el.className = `status-preview status-${status}`;
     el.innerHTML = `<span class="sw"></span>${STATUS_LABEL[status].text}`;
   }else{
     el.className = `status-preview status-neutral`;
-    el.innerHTML = `<span class="sw"></span>Enter all 3 sets to see status`;
+    el.innerHTML = `<span class="sw"></span>Check off all 3 sets to see status`;
   }
 }
 function updateFinishButton(){
   const btn = document.getElementById("finishBtn");
   if(!btn) return;
   const hasEntries = sessionEntries.length > 0;
-  const allFilled = hasEntries && sessionEntries.every(e => e.sets.every(s=>s.reps!==null && s.reps!==""));
+  const allFilled = hasEntries && sessionEntries.every(e => e.sets.every(s=>s.done && s.reps!==null && s.reps!==""));
   btn.disabled = !hasEntries;
   btn.textContent = allFilled ? "Finish Workout" : "Save Plan for Later";
   const hint = document.getElementById("planHint");
@@ -1143,7 +1160,7 @@ function pickExercise(exId){
   sessionEntries.push({
     exId, name: ex.name,
     warmups: [],
-    sets: [{weight:suggested, reps:null}, {weight:suggested, reps:null}, {weight:suggested, reps:null}]
+    sets: [{weight:suggested, reps:null, done:false}, {weight:suggested, reps:null, done:false}, {weight:suggested, reps:null, done:false}]
   });
   closeModal();
   render();
@@ -1162,13 +1179,15 @@ function saveSession(){
   const entries = sessionEntries.map(e=>{
     const setsClean = e.sets.map(s => ({
       weight: s.weight,
-      reps: (s.reps===null || s.reps==="") ? null : Number(s.reps)
+      reps: (s.reps===null || s.reps==="") ? null : Number(s.reps),
+      done: !!s.done
     }));
     const warmupsClean = e.warmups.map(s => ({
       weight: s.weight,
-      reps: (s.reps===null || s.reps==="") ? null : Number(s.reps)
+      reps: (s.reps===null || s.reps==="") ? null : Number(s.reps),
+      done: !!s.done
     }));
-    const filled = setsClean.every(s => s.reps !== null);
+    const filled = setsClean.every(s => s.done && s.reps !== null);
     const volume = filled ? setsClean.reduce((sum,s)=> sum + s.weight*s.reps, 0) : 0;
     const status = filled ? computeStatus(setsClean.map(s=>s.reps)) : null;
     return { exId:e.exId, name:e.name, warmups:warmupsClean, sets:setsClean, volume, status };
