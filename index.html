@@ -239,36 +239,53 @@ body{
 }
 .date-field-row input[type=date]::-webkit-calendar-picker-indicator{ filter:invert(70%) sepia(60%) saturate(400%) hue-rotate(0deg); opacity:.85;}
 .plan-hint{margin:10px 4px 0; font-size:11.5px; color:var(--text-faint); text-align:center; line-height:1.4;}
-.weight-row{display:flex; align-items:center; gap:10px; margin-top:14px;}
-.stepper-btn{
-  width:40px;height:40px;border-radius:50%;
+.sets-subhead{
+  font-size:10.5px; color:var(--text-faint); letter-spacing:1.5px; text-transform:uppercase;
+  font-weight:700; margin:16px 2px 8px;
+}
+.set-line{
+  display:flex; align-items:center; gap:8px; margin-bottom:8px;
+}
+.set-line-label{
+  width:40px; flex-shrink:0; font-size:11px; color:var(--text-faint);
+  font-family:var(--font-mono); font-weight:700;
+}
+.set-line-weight{display:flex; align-items:center; gap:6px; flex:1.3;}
+.mini-stepper{
+  width:26px; height:26px; border-radius:50%; flex-shrink:0; padding:0;
   background:var(--bg-card-2); border:1px solid var(--border);
-  color:var(--accent-hi); font-size:20px; font-weight:700;
-  display:flex;align-items:center;justify-content:center; cursor:pointer; user-select:none;
-  flex-shrink:0;
+  color:var(--accent-hi); font-size:15px; font-weight:700;
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
 }
-.stepper-btn:active{background:var(--accent-soft);}
-.weight-display{
-  flex:1; text-align:center; font-family:var(--font-mono); font-weight:700;
-}
-.weight-display input{
-  width:100%; background:none; border:none; color:var(--text);
-  font-family:var(--font-mono); font-size:30px; font-weight:700; text-align:center;
+.mini-stepper:active{background:var(--accent-soft);}
+.mini-weight-input{
+  flex:1; min-width:0; background:var(--bg-card-2); border:1px solid var(--border);
+  border-radius:8px; color:var(--text); text-align:center;
+  font-family:var(--font-mono); font-size:15px; font-weight:700; padding:7px 2px;
   -moz-appearance:textfield;
 }
-.weight-display input::-webkit-outer-spin-button,
-.weight-display input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
-.weight-unit{font-size:11px; color:var(--text-faint); letter-spacing:1px; text-transform:uppercase; margin-top:-2px;}
-
-.sets-row{display:flex; gap:8px; margin-top:14px;}
-.set-box{flex:1;}
-.set-label{font-size:10.5px; color:var(--text-faint); text-align:center; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px;}
-.set-box input{
-  width:100%; background:var(--bg-card-2); border:1px solid var(--border);
-  border-radius:var(--radius-sm); color:var(--text); text-align:center;
-  font-family:var(--font-mono); font-size:19px; font-weight:700; padding:10px 0;
+.mini-weight-input::-webkit-outer-spin-button,
+.mini-weight-input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
+.mini-weight-input:focus{outline:none; border-color:var(--accent);}
+.mini-reps-input{
+  flex:1; min-width:0; background:var(--bg-card-2); border:1px solid var(--border);
+  border-radius:8px; color:var(--text); text-align:center;
+  font-family:var(--font-mono); font-size:15px; font-weight:700; padding:7px 2px;
 }
-.set-box input:focus{outline:none; border-color:var(--accent);}
+.mini-reps-input:focus{outline:none; border-color:var(--accent);}
+.set-line-remove{
+  width:24px; height:24px; flex-shrink:0; border-radius:50%; padding:0;
+  background:none; border:none; color:var(--text-faint); font-size:13px; cursor:pointer;
+}
+.set-line-remove:active{color:var(--red);}
+.set-line-spacer{width:24px; flex-shrink:0;}
+.add-warmup-btn{
+  display:block; width:100%; text-align:center; margin:2px 0 4px;
+  padding:9px; border:1px dashed var(--border); border-radius:10px;
+  color:var(--text-faint); font-size:11.5px; font-weight:700; cursor:pointer;
+  background:none;
+}
+.add-warmup-btn:active{color:var(--accent-hi); border-color:var(--accent);}
 
 .status-preview{
   display:flex; align-items:center; gap:8px; margin-top:14px;
@@ -552,7 +569,7 @@ const STATUS_LABEL = {
 };
 
 function upsertWorkout(existingId, type, dateStr, entries){
-  const allFilled = entries.every(en => en.reps.every(r => r !== null));
+  const allFilled = entries.every(en => en.sets.every(s => s.reps !== null));
   const status = allFilled ? "completed" : "planned";
   const iso = new Date(dateStr + "T12:00:00").toISOString();
   if(existingId){
@@ -569,6 +586,13 @@ function upsertWorkout(existingId, type, dateStr, entries){
   return w;
 }
 function workoutStatus(w){ return w.status || "completed"; }
+
+/* Backward compatibility: entries saved before per-set weights existed
+   used a single {weight, reps:[a,b,c]} shape. Normalize to {sets:[{weight,reps}...]}. */
+function normalizeEntrySets(e){
+  if(e.sets) return e.sets;
+  return (e.reps || [null,null,null]).map(r => ({ weight: e.weight || 0, reps: r }));
+}
 
 function dateKeyLocal(d){
   const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
@@ -610,9 +634,14 @@ function getExerciseHistory(exId){
   const sorted = [...DATA.workouts].sort((a,b)=> new Date(a.date)-new Date(b.date));
   sorted.forEach(w=>{
     w.entries.filter(e=>e.exId===exId && e.status !== null).forEach(e=>{
+      const sets = normalizeEntrySets(e);
+      const firstSet = sets[0] || {weight:0, reps:null};
       rows.push({
-        wId:w.id, date:w.date, weight:e.weight, reps:e.reps, volume:e.volume, status:e.status,
-        oneRM: oneRepMax(e.weight, e.reps[0])
+        wId:w.id, date:w.date,
+        sets, warmups: e.warmups || [],
+        weight: firstSet.weight, reps: sets.map(s=>s.reps),
+        volume:e.volume, status:e.status,
+        oneRM: oneRepMax(firstSet.weight, firstSet.reps)
       });
     });
   });
@@ -913,11 +942,36 @@ function continuePlanned(workoutId){
   sessionType = w.type;
   sessionDate = dateKeyLocal(new Date(w.date));
   editingWorkoutId = w.id;
-  sessionEntries = w.entries.map(e => ({ exId:e.exId, name:e.name, weight:e.weight, reps:[...e.reps] }));
+  sessionEntries = w.entries.map(e => ({
+    exId: e.exId, name: e.name,
+    warmups: (e.warmups || []).map(s => ({...s})),
+    sets: normalizeEntrySets(e).map(s => ({...s}))
+  }));
   nav({name:"log"});
 }
 
 /* ============ LOG / PLAN BUILDER ============ */
+function renderSetLine(idx, group, si, set, label, removable){
+  return `
+    <div class="set-line">
+      <div class="set-line-label">${label}</div>
+      <div class="set-line-weight">
+        <button class="mini-stepper" onclick="stepSetWeight(${idx}, '${group}', ${si}, -1)">−</button>
+        <input type="number" inputmode="decimal" class="mini-weight-input" id="weight-input-${group}-${idx}-${si}" placeholder="0"
+          value="${set.weight === 0 ? "" : set.weight}"
+          onfocus="this.select()"
+          oninput="setSetWeight(${idx}, '${group}', ${si}, this.value)">
+        <button class="mini-stepper" onclick="stepSetWeight(${idx}, '${group}', ${si}, 1)">+</button>
+      </div>
+      <input type="number" inputmode="numeric" class="mini-reps-input" placeholder="reps" value="${set.reps ?? ""}"
+        oninput="setSetReps(${idx}, '${group}', ${si}, this.value)">
+      ${removable
+        ? `<button class="set-line-remove" onclick="removeWarmup(${idx}, ${si})" aria-label="Remove warm-up set">✕</button>`
+        : `<span class="set-line-spacer"></span>`}
+    </div>
+  `;
+}
+
 function viewLog(){
   const type = sessionType;
   const meta = TYPE_META[type];
@@ -929,13 +983,16 @@ function viewLog(){
       ? `Last: ${suggestion.basedOn.weight} lbs → suggested ${suggestion.weight} lbs`
       : `First time logging this lift`;
 
-    const filled = entry.reps.every(r => r !== null && r !== "");
+    const repsNow = entry.sets.map(s=>s.reps);
+    const filled = repsNow.every(r => r !== null && r !== "");
     let statusHtml = `<div class="status-preview status-neutral" id="status-${idx}"><span class="sw"></span>Enter all 3 sets to see status</div>`;
     if(filled){
-      const reps = entry.reps.map(Number);
-      const status = computeStatus(reps);
+      const status = computeStatus(repsNow.map(Number));
       statusHtml = `<div class="status-preview status-${status}" id="status-${idx}"><span class="sw"></span>${STATUS_LABEL[status].text}</div>`;
     }
+
+    const warmupLines = entry.warmups.map((s,si) => renderSetLine(idx, "warmups", si, s, `W${si+1}`, true)).join("");
+    const setLines = entry.sets.map((s,si) => renderSetLine(idx, "sets", si, s, `Set ${si+1}`, false)).join("");
 
     cards += `
       <div class="exercise-card">
@@ -951,27 +1008,11 @@ function viewLog(){
           <button class="remove-x" onclick="removeSessionEntry(${idx})">✕</button>
         </div>
 
-        <div class="weight-row">
-          <button class="stepper-btn" onclick="stepWeight(${idx}, -1)">−</button>
-          <div class="weight-display">
-            <input type="number" inputmode="decimal" id="weight-input-${idx}" placeholder="0"
-              value="${entry.weight === 0 ? "" : entry.weight}"
-              onfocus="this.select()"
-              oninput="setWeight(${idx}, this.value)">
-            <div class="weight-unit">lbs</div>
-          </div>
-          <button class="stepper-btn" onclick="stepWeight(${idx}, 1)">+</button>
-        </div>
+        ${entry.warmups.length ? `<div class="sets-subhead">Warm-up</div>${warmupLines}` : ""}
+        <button class="add-warmup-btn" onclick="addWarmup(${idx})">+ Add Warm-up Set</button>
 
-        <div class="sets-row">
-          ${[0,1,2].map(si => `
-            <div class="set-box">
-              <div class="set-label">Set ${si+1}</div>
-              <input type="number" inputmode="numeric" placeholder="—" value="${entry.reps[si] ?? ""}"
-                oninput="setReps(${idx}, ${si}, this.value)">
-            </div>
-          `).join("")}
-        </div>
+        <div class="sets-subhead">Working Sets</div>
+        ${setLines}
 
         ${statusHtml}
       </div>
@@ -979,7 +1020,7 @@ function viewLog(){
   });
 
   const hasEntries = sessionEntries.length > 0;
-  const allFilled = hasEntries && sessionEntries.every(e => e.reps.every(r=>r!==null && r!==""));
+  const allFilled = hasEntries && sessionEntries.every(e => e.sets.every(s=>s.reps!==null && s.reps!==""));
   const btnLabel = allFilled ? "Finish Workout" : "Save Plan for Later";
 
   return `
@@ -995,7 +1036,7 @@ function viewLog(){
     <div class="add-exercise-btn" onclick="openExercisePicker()">+ Add Exercise</div>
     <div style="padding:0 20px;">
       <button class="finish-btn" id="finishBtn" ${hasEntries ? "" : "disabled"} onclick="saveSession()">${btnLabel}</button>
-      <div id="planHint" class="plan-hint" style="display:${(!allFilled && hasEntries) ? "block" : "none"}">Fill in every set to finish now, or leave sets blank to save this as a plan and complete it later.</div>
+      <div id="planHint" class="plan-hint" style="display:${(!allFilled && hasEntries) ? "block" : "none"}">Fill in every working set to finish now, or leave sets blank to save this as a plan and complete it later.</div>
     </div>
   `;
 }
@@ -1009,29 +1050,43 @@ function moveEntry(idx, dir){
   render();
 }
 
-function stepWeight(idx, dir){
+function stepSetWeight(idx, group, si, dir){
   const ex = findExercise(sessionEntries[idx].exId);
   const inc = ex ? ex.increment : 5;
-  sessionEntries[idx].weight = Math.max(0, +(sessionEntries[idx].weight) + dir*inc);
-  const input = document.getElementById(`weight-input-${idx}`);
-  if(input) input.value = sessionEntries[idx].weight === 0 ? "" : sessionEntries[idx].weight;
+  const set = sessionEntries[idx][group][si];
+  set.weight = Math.max(0, +(set.weight) + dir*inc);
+  const input = document.getElementById(`weight-input-${group}-${idx}-${si}`);
+  if(input) input.value = set.weight === 0 ? "" : set.weight;
 }
-function setWeight(idx, val){
-  sessionEntries[idx].weight = val === "" ? 0 : Number(val);
+function setSetWeight(idx, group, si, val){
+  sessionEntries[idx][group][si].weight = val === "" ? 0 : Number(val);
 }
-function setReps(idx, si, val){
-  sessionEntries[idx].reps[si] = val === "" ? "" : Math.max(0, Number(val));
-  updateStatusPreview(idx);
-  updateFinishButton();
+function setSetReps(idx, group, si, val){
+  sessionEntries[idx][group][si].reps = val === "" ? "" : Math.max(0, Number(val));
+  if(group === "sets"){
+    updateStatusPreview(idx);
+    updateFinishButton();
+  }
+}
+function addWarmup(idx){
+  const entry = sessionEntries[idx];
+  const baseWeight = entry.sets[0] ? entry.sets[0].weight : 0;
+  const suggested = Math.round((baseWeight * 0.5) / 5) * 5;
+  entry.warmups.push({ weight: suggested, reps: null });
+  render();
+}
+function removeWarmup(idx, si){
+  sessionEntries[idx].warmups.splice(si,1);
+  render();
 }
 function updateStatusPreview(idx){
   const entry = sessionEntries[idx];
   const el = document.getElementById(`status-${idx}`);
   if(!el) return;
-  const filled = entry.reps.every(r => r !== null && r !== "");
+  const reps = entry.sets.map(s=>s.reps);
+  const filled = reps.every(r => r !== null && r !== "");
   if(filled){
-    const reps = entry.reps.map(Number);
-    const status = computeStatus(reps);
+    const status = computeStatus(reps.map(Number));
     el.className = `status-preview status-${status}`;
     el.innerHTML = `<span class="sw"></span>${STATUS_LABEL[status].text}`;
   }else{
@@ -1043,7 +1098,7 @@ function updateFinishButton(){
   const btn = document.getElementById("finishBtn");
   if(!btn) return;
   const hasEntries = sessionEntries.length > 0;
-  const allFilled = hasEntries && sessionEntries.every(e => e.reps.every(r=>r!==null && r!==""));
+  const allFilled = hasEntries && sessionEntries.every(e => e.sets.every(s=>s.reps!==null && s.reps!==""));
   btn.disabled = !hasEntries;
   btn.textContent = allFilled ? "Finish Workout" : "Save Plan for Later";
   const hint = document.getElementById("planHint");
@@ -1084,7 +1139,12 @@ function openExercisePicker(){
 function pickExercise(exId){
   const ex = findExercise(exId);
   if(sessionEntries.some(e=>e.exId===exId)){ closeModal(); return; }
-  sessionEntries.push({ exId, name: ex.name, weight: (getSuggestedWeight(exId)?.weight) || 0, reps:[null,null,null] });
+  const suggested = (getSuggestedWeight(exId)?.weight) || 0;
+  sessionEntries.push({
+    exId, name: ex.name,
+    warmups: [],
+    sets: [{weight:suggested, reps:null}, {weight:suggested, reps:null}, {weight:suggested, reps:null}]
+  });
   closeModal();
   render();
 }
@@ -1100,11 +1160,18 @@ function closeModal(){ document.getElementById("modal-root").innerHTML = ""; }
 function saveSession(){
   if(sessionEntries.length === 0) return;
   const entries = sessionEntries.map(e=>{
-    const repsClean = e.reps.map(r => (r===null || r==="") ? null : Number(r));
-    const filled = repsClean.every(r => r !== null);
-    const volume = filled ? e.weight * repsClean.reduce((a,b)=>a+b,0) : 0;
-    const status = filled ? computeStatus(repsClean) : null;
-    return { exId:e.exId, name:e.name, weight:e.weight, reps:repsClean, volume, status };
+    const setsClean = e.sets.map(s => ({
+      weight: s.weight,
+      reps: (s.reps===null || s.reps==="") ? null : Number(s.reps)
+    }));
+    const warmupsClean = e.warmups.map(s => ({
+      weight: s.weight,
+      reps: (s.reps===null || s.reps==="") ? null : Number(s.reps)
+    }));
+    const filled = setsClean.every(s => s.reps !== null);
+    const volume = filled ? setsClean.reduce((sum,s)=> sum + s.weight*s.reps, 0) : 0;
+    const status = filled ? computeStatus(setsClean.map(s=>s.reps)) : null;
+    return { exId:e.exId, name:e.name, warmups:warmupsClean, sets:setsClean, volume, status };
   });
   const w = upsertWorkout(editingWorkoutId, sessionType, sessionDate, entries);
   const completed = workoutStatus(w) === "completed";
@@ -1160,11 +1227,15 @@ function viewSessionDetail(workoutId){
   w.entries.forEach(e=>{
     const isPR = prSet.has(`${w.id}::${e.exId}`);
     const color = e.status === "green" ? "var(--green)" : e.status === "orange" ? "var(--orange)" : "var(--red)";
+    const sets = normalizeEntrySets(e);
+    const setsStr = sets.map(s=>`${s.weight}×${s.reps ?? "-"}`).join(", ");
+    const warmupCount = (e.warmups || []).length;
+    const warmupNote = warmupCount ? ` · ${warmupCount} warm-up${warmupCount>1?"s":""}` : "";
     rows += `
       <div class="ex-row" onclick="detailBackTarget={name:'session', workoutId:'${w.id}'}; nav({name:'detail', exId:'${e.exId}'})">
         <div>
           <div class="en">${isPR ? `<span class="pr-star-inline">${ICONS.star}</span>` : ""}${e.name}</div>
-          <div class="es">${e.weight} lbs · ${e.reps.join("/")} reps · ${e.volume.toLocaleString()} lbs vol.</div>
+          <div class="es">${setsStr}${warmupNote} · ${e.volume.toLocaleString()} lbs vol.</div>
         </div>
         <div style="display:flex; align-items:center; gap:10px;">
           <div class="session-dot" style="background:${color}"></div>
@@ -1219,11 +1290,13 @@ function viewExerciseDetail(exId){
   if(selectedPoint !== null && history[selectedPoint]){
     const p = history[selectedPoint];
     const isPR = prSet.has(`${p.wId}::${exId}`);
+    const setsLine = p.sets.map((s,i)=>`Set ${i+1}: ${s.weight} lbs × ${s.reps}`).join("<br>");
+    const warmupNote = p.warmups.length ? `<br>${p.warmups.length} warm-up set${p.warmups.length>1?"s":""} (not counted)` : "";
     pointDetail = `
       <div class="point-detail">
         <b>${fmtDateFull(p.date)}</b>${isPR ? ` <span class="pr-star-inline">${ICONS.star}</span><b>Personal Record</b>` : ""}<br>
-        ${p.weight} lbs × [${p.reps.join(", ")}] reps — <b>${p.volume.toLocaleString()} lbs</b> total volume<br>
-        Estimated 1RM: <b>${Math.round(p.oneRM).toLocaleString()} lbs</b><br>
+        ${setsLine}${warmupNote}<br>
+        <b>${p.volume.toLocaleString()} lbs</b> total volume · Estimated 1RM: <b>${Math.round(p.oneRM).toLocaleString()} lbs</b><br>
         ${STATUS_LABEL[p.status].text}
       </div>`;
   }
@@ -1232,11 +1305,12 @@ function viewExerciseDetail(exId){
   [...history].reverse().forEach((h)=>{
     const color = h.status === "green" ? "var(--green)" : h.status === "orange" ? "var(--orange)" : "var(--red)";
     const isPR = prSet.has(`${h.wId}::${exId}`);
+    const setsStr = h.sets.map(s=>`${s.weight}×${s.reps}`).join(", ");
     rows += `
       <div class="hrow">
         <div class="hdot" style="background:${color}"></div>
         <div class="hdate">${fmtDate(h.date)}</div>
-        <div class="hreps">${isPR ? `<span class="pr-star-inline">${ICONS.star}</span>` : ""}${h.weight} lbs · ${h.reps.join("/")}</div>
+        <div class="hreps">${isPR ? `<span class="pr-star-inline">${ICONS.star}</span>` : ""}${setsStr}</div>
         <div class="hvol">${h.volume.toLocaleString()}</div>
       </div>`;
   });
