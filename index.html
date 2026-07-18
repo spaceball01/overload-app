@@ -103,19 +103,16 @@ body{
   background:linear-gradient(155deg, var(--bg-card-2), var(--bg-card));
   border:1px solid var(--border);
   border-radius:var(--radius-lg);
-  padding:20px 16px 18px;
-  min-height:118px;
-  display:flex; flex-direction:column; justify-content:space-between;
+  padding:18px 16px;
+  display:flex; align-items:center; justify-content:center;
   cursor:pointer;
   transition:transform .15s ease, border-color .15s ease;
 }
 .type-card:active{transform:scale(0.97);}
-.type-card .plate-icon{width:30px; height:30px; opacity:.9;}
 .type-card .tname{
   font-family:var(--font-display); font-weight:800; font-size:19px;
-  letter-spacing:0.5px; text-transform:uppercase; margin-top:10px;
+  letter-spacing:0.5px; text-transform:uppercase; text-align:center;
 }
-.type-card .tsub{font-size:11.5px; color:var(--text-faint); margin-top:2px;}
 
 /* Recent sessions */
 .session-row{
@@ -823,11 +820,7 @@ function viewHome(){
     const m = TYPE_META[type];
     cards += `
       <div class="type-card" onclick="startLog('${type}')">
-        ${ICONS.plate}
-        <div>
-          <div class="tname">${m.label}</div>
-          <div class="tsub">${m.sub}</div>
-        </div>
+        <div class="tname">${m.label}</div>
       </div>`;
   }
 
