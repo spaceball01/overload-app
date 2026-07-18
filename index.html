@@ -336,6 +336,14 @@ body{
 }
 .sheet-handle{width:36px;height:4px;background:var(--border); border-radius:2px; margin:6px auto 16px;}
 .sheet-title{font-family:var(--font-display); font-weight:800; font-size:20px; text-transform:uppercase; margin-bottom:14px;}
+.confirm-msg{color:var(--text-dim); font-size:14.5px; line-height:1.5; margin:-2px 0 20px;}
+.confirm-actions{display:flex; gap:10px;}
+.confirm-btn{
+  flex:1; padding:15px; border-radius:var(--radius-md); border:1px solid var(--border);
+  background:var(--bg-card); color:var(--text); font-weight:700; font-size:14.5px; cursor:pointer;
+}
+.confirm-btn-danger{background:var(--red); border-color:var(--red); color:#2B0B0C;}
+.confirm-btn:active{transform:scale(0.97);}
 .pick-row{
   display:flex; align-items:center; justify-content:space-between;
   padding:14px 4px; border-bottom:1px solid var(--border-soft); cursor:pointer;
@@ -622,12 +630,13 @@ function deleteWorkout(workoutId){
   const isPlanned = workoutStatus(w) !== "completed";
   const label = `${TYPE_META[w.type].label} · ${fmtDate(w.date)}`;
   const msg = isPlanned ? `Delete this planned workout (${label})?` : `Delete this session (${label})? This can't be undone.`;
-  if(!confirm(msg)) return;
-  DATA.workouts = DATA.workouts.filter(w=>w.id!==workoutId);
-  saveData(DATA);
-  selectedPoint = null;
-  showToast(isPlanned ? "Plan deleted" : "Session deleted");
-  render();
+  showConfirmDialog(msg, ()=>{
+    DATA.workouts = DATA.workouts.filter(w=>w.id!==workoutId);
+    saveData(DATA);
+    selectedPoint = null;
+    showToast(isPlanned ? "Plan deleted" : "Session deleted");
+    render();
+  });
 }
 
 function oneRepMax(weight, firstSetReps){
@@ -1167,6 +1176,31 @@ function createAndPick(){
 }
 function closeModal(){ document.getElementById("modal-root").innerHTML = ""; }
 
+let _pendingConfirmAction = null;
+function showConfirmDialog(message, onYes){
+  _pendingConfirmAction = onYes;
+  const modal = document.getElementById("modal-root");
+  modal.innerHTML = `
+    <div class="sheet-backdrop" onclick="if(event.target===this){_pendingConfirmAction=null; closeModal();}">
+      <div class="sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-title">Are You Sure?</div>
+        <div class="confirm-msg">${message}</div>
+        <div class="confirm-actions">
+          <button class="confirm-btn" onclick="_pendingConfirmAction=null; closeModal();">No</button>
+          <button class="confirm-btn confirm-btn-danger" onclick="runConfirmedAction()">Yes</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function runConfirmedAction(){
+  const fn = _pendingConfirmAction;
+  _pendingConfirmAction = null;
+  closeModal();
+  if(fn) fn();
+}
+
 function saveSession(){
   if(sessionEntries.length === 0) return;
   const entries = sessionEntries.map(e=>{
@@ -1455,10 +1489,10 @@ function viewManage(){
   `;
 }
 function removeExercise(type, id){
-  if(confirm("Delete this exercise? Past history stays saved but it will leave the picker.")){
+  showConfirmDialog("Delete this exercise? Past history stays saved but it will leave the picker.", ()=>{
     deleteExercise(type, id);
     render();
-  }
+  });
 }
 function addFromManage(type){
   const input = document.getElementById(`add-${type}`);
