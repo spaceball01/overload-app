@@ -160,9 +160,11 @@ body{
   position:relative;
   aspect-ratio:1; border-radius:9px; display:flex; align-items:center; justify-content:center;
   font-family:var(--font-mono); font-size:12px; color:var(--text-dim); background:var(--bg-card-2);
-  border:1px solid transparent;
+  border:1px solid transparent; cursor:pointer;
 }
-.cal-day.empty{background:none;}
+.cal-day:active{transform:scale(0.92);}
+.cal-day.empty{background:none; cursor:default;}
+.cal-day.empty:active{transform:none;}
 .cal-day.done{background:var(--green); color:#0C2318; font-weight:700;}
 .cal-day.today{border-color:var(--accent);}
 .cal-pr-star{
@@ -850,6 +852,7 @@ function render(){
   else if(route.name === "log") html = viewLog();
   else if(route.name === "progress") html = viewProgressList();
   else if(route.name === "session") html = viewSessionDetail(route.workoutId);
+  else if(route.name === "day") html = viewDayDetail(route.date);
   else if(route.name === "detail") html = viewExerciseDetail(route.exId);
   else if(route.name === "manage") html = viewManage();
 
@@ -894,7 +897,7 @@ function renderCalendar(){
     if(completed.has(key)) classes.push("done");
     if(key === todayKey) classes.push("today");
     const star = prDates.has(key) ? `<span class="cal-pr-star">${ICONS.star}</span>` : "";
-    cells += `<div class="${classes.join(' ')}">${star}${d}</div>`;
+    cells += `<div class="${classes.join(' ')}" onclick="nav({name:'day', date:'${key}'})">${star}${d}</div>`;
   }
 
   return `
@@ -916,7 +919,7 @@ function viewHome(){
   const completedWorkouts = DATA.workouts.filter(w => workoutStatus(w) === "completed");
   const plannedWorkouts = DATA.workouts.filter(w => workoutStatus(w) !== "completed")
     .sort((a,b)=> new Date(a.date)-new Date(b.date));
-  const recent = [...completedWorkouts].sort((a,b)=> new Date(b.date)-new Date(a.date)).slice(0,6);
+  const recent = [...completedWorkouts].sort((a,b)=> new Date(b.date)-new Date(a.date)).slice(0,5);
   const today = new Date().toLocaleDateString(undefined,{weekday:"long", month:"long", day:"numeric"});
   const prSet = getAllPRKeys();
 
@@ -1395,6 +1398,50 @@ function viewProgressList(){
   `;
 }
 
+/* ============ DAY DETAIL ============ */
+function viewDayDetail(dateKey){
+  const prSet = getAllPRKeys();
+  const dayWorkouts = DATA.workouts
+    .filter(w => workoutStatus(w) === "completed" && dateKeyLocal(new Date(w.date)) === dateKey)
+    .sort((a,b)=> new Date(b.date)-new Date(a.date));
+
+  const [y,m,d] = dateKey.split("-").map(Number);
+  const dateObj = new Date(y, m-1, d);
+  const title = dateObj.toLocaleDateString(undefined,{weekday:"long", month:"long", day:"numeric"});
+
+  let sessions = "";
+  if(dayWorkouts.length === 0){
+    sessions = `<div class="empty-state">No workouts performed on this day.</div>`;
+  }else{
+    dayWorkouts.forEach(w=>{
+      const totalVol = w.entries.reduce((s,e)=>s+e.volume,0);
+      const worstStatus = w.entries.some(e=>e.status==="red") ? "red" : (w.entries.some(e=>e.status==="orange") ? "orange" : "green");
+      const dotColor = worstStatus === "green" ? "var(--green)" : worstStatus === "orange" ? "var(--orange)" : "var(--red)";
+      const isPR = workoutHasPR(w, prSet);
+      sessions += `
+        <div class="session-row">
+          <div class="session-dot" style="background:${dotColor}"></div>
+          <div class="session-main" onclick="nav({name:'session', workoutId:'${w.id}'})">
+            <div class="session-type">${isPR ? `<span class="pr-star-inline">${ICONS.star}</span>` : ""}${TYPE_META[w.type].label} · ${w.entries.length} exercise${w.entries.length>1?"s":""}</div>
+            <div class="session-date">${fmtDate(w.date)}</div>
+          </div>
+          <div class="session-vol" onclick="nav({name:'session', workoutId:'${w.id}'})">${totalVol.toLocaleString()}<span>lbs vol.</span></div>
+          <button class="session-del" onclick="event.stopPropagation(); deleteWorkout('${w.id}')" aria-label="Delete session">${ICONS.trash}</button>
+        </div>`;
+    });
+  }
+
+  return `
+    <div class="bar-top">
+      <div class="back-btn" onclick="nav({name:'home'})">${ICONS.back}</div>
+      <div class="bar-title">${title}</div>
+    </div>
+    <div class="section" style="margin-top:14px;">
+      ${sessions}
+    </div>
+  `;
+}
+
 /* ============ SESSION DETAIL ============ */
 let detailBackTarget = {name:"progress"};
 function viewSessionDetail(workoutId){
@@ -1722,7 +1769,7 @@ function importDataFile(input){
 
 /* ============ NAV / TOAST ============ */
 function viewBottomNav(showResumeBar){
-  const active = (route.name === "log" || route.name === "session") ? "home" : (route.name === "detail" ? "progress" : route.name);
+  const active = (route.name === "log" || route.name === "session" || route.name === "day") ? "home" : (route.name === "detail" ? "progress" : route.name);
   const resumeBar = showResumeBar ? `
     <div class="active-session-bar" onclick="nav({name:'log'})">
       <div class="active-session-dot"></div>
