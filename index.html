@@ -328,6 +328,13 @@ body{
   cursor:pointer; text-align:center;
 }
 .finish-btn:disabled{opacity:.4;}
+.discard-btn{
+  margin:10px 20px 0; padding:15px;
+  background:none; color:var(--red); border:1px solid rgba(229,72,77,0.35); border-radius:var(--radius-lg);
+  font-weight:700; font-size:14px; letter-spacing:.3px; text-transform:uppercase;
+  cursor:pointer; text-align:center; width:calc(100% - 40px);
+}
+.discard-btn:active{background:var(--red-soft);}
 
 /* Picker sheet */
 .sheet-backdrop{
@@ -463,9 +470,27 @@ body{
 /* Bottom nav */
 .bottom-nav{
   position:fixed; bottom:0; left:0; right:0;
-  display:flex; justify-content:center;
+  display:flex; flex-direction:column; align-items:center;
   padding-bottom:env(safe-area-inset-bottom, 0px);
   z-index:40;
+}
+.active-session-bar{
+  width:100%; max-width:520px;
+  display:flex; align-items:center; gap:12px;
+  background:linear-gradient(155deg, rgba(201,162,39,0.22), rgba(28,31,38,0.96));
+  backdrop-filter:blur(14px);
+  border-top:1px solid var(--border); border-bottom:1px solid var(--border-soft);
+  padding:12px 18px; cursor:pointer;
+}
+.active-session-dot{
+  width:9px;height:9px;border-radius:50%; background:var(--accent-hi); flex-shrink:0;
+  box-shadow:0 0 0 4px var(--accent-soft);
+}
+.active-session-main{flex:1; min-width:0;}
+.active-session-title{font-weight:800; font-size:13px; letter-spacing:.2px;}
+.active-session-sub{font-size:11px; color:var(--text-dim); margin-top:1px;}
+.active-session-timer{
+  font-family:var(--font-mono); font-weight:800; font-size:14px; color:var(--accent-hi); flex-shrink:0;
 }
 .bottom-nav-inner{
   width:100%; max-width:520px;
@@ -783,6 +808,37 @@ let editingWorkoutId = null; // set when continuing an existing planned workout
 let sessionStartTime = null; // Date.now() when this log screen was entered, for the workout timer
 let sessionTimerInterval = null;
 
+/* ---- Active session persistence ----
+   Keeps an in-progress workout alive across tab switches, back-button taps,
+   and even the app being reloaded/killed in the background — it's only
+   cleared by Finish Workout, Discard Workout, or an explicit Save. */
+const ACTIVE_SESSION_KEY = "overload_active_session_v1";
+function persistActiveSession(){
+  if(!sessionType){ clearActiveSessionStorage(); return; }
+  try{
+    localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify({
+      type: sessionType, date: sessionDate, editingWorkoutId,
+      startTime: sessionStartTime, entries: sessionEntries
+    }));
+  }catch(e){}
+}
+function clearActiveSessionStorage(){
+  try{ localStorage.removeItem(ACTIVE_SESSION_KEY); }catch(e){}
+}
+function restoreActiveSessionIfAny(){
+  try{
+    const raw = localStorage.getItem(ACTIVE_SESSION_KEY);
+    if(!raw) return;
+    const s = JSON.parse(raw);
+    if(!s || !s.type) return;
+    sessionType = s.type;
+    sessionDate = s.date;
+    editingWorkoutId = s.editingWorkoutId ?? null;
+    sessionStartTime = s.startTime ?? null;
+    sessionEntries = s.entries || [];
+  }catch(e){}
+}
+
 function nav(r){ route = r; render(); window.scrollTo(0,0); }
 
 function render(){
@@ -795,8 +851,10 @@ function render(){
   else if(route.name === "detail") html = viewExerciseDetail(route.exId);
   else if(route.name === "manage") html = viewManage();
 
-  html += viewBottomNav();
+  const showResumeBar = sessionType && route.name !== "log";
+  html += viewBottomNav(showResumeBar);
   app.innerHTML = html;
+  app.style.paddingBottom = showResumeBar ? "154px" : "96px";
   afterRender();
 }
 
@@ -954,6 +1012,7 @@ function startLog(type){
   sessionDate = todayStr();
   editingWorkoutId = null;
   sessionStartTime = Date.now();
+  persistActiveSession();
   nav({name:"log"});
 }
 
@@ -984,6 +1043,7 @@ function beginPlan(type){
   sessionDate = tomorrowStr();
   editingWorkoutId = null;
   sessionStartTime = Date.now();
+  persistActiveSession();
   closeModal();
   nav({name:"log"});
 }
@@ -1000,6 +1060,7 @@ function continuePlanned(workoutId){
     warmups: (e.warmups || []).map(withDone),
     sets: normalizeEntrySets(e).map(withDone)
   }));
+  persistActiveSession();
   nav({name:"log"});
 }
 
@@ -1092,21 +1153,24 @@ function viewLog(){
     <div style="padding:0 20px;">
       <button class="finish-btn" id="finishBtn" ${hasEntries ? "" : "disabled"} onclick="saveSession()">${btnLabel}</button>
       <div id="planHint" class="plan-hint" style="display:${(!allFilled && hasEntries) ? "block" : "none"}">Fill in every working set to finish now, or leave sets blank to save this as a plan and complete it later.</div>
+      <button class="discard-btn" onclick="discardWorkout()">Discard Workout</button>
     </div>
   `;
 }
 
-function setSessionDate(val){ sessionDate = val; }
+function setSessionDate(val){ sessionDate = val; persistActiveSession(); }
 
 function moveEntry(idx, dir){
   const newIdx = idx + dir;
   if(newIdx < 0 || newIdx >= sessionEntries.length) return;
   [sessionEntries[idx], sessionEntries[newIdx]] = [sessionEntries[newIdx], sessionEntries[idx]];
+  persistActiveSession();
   render();
 }
 
 function setSetWeight(idx, group, si, val){
   sessionEntries[idx][group][si].weight = val === "" ? 0 : Number(val);
+  persistActiveSession();
 }
 function setSetReps(idx, group, si, val){
   const set = sessionEntries[idx][group][si];
@@ -1115,6 +1179,7 @@ function setSetReps(idx, group, si, val){
     updateStatusPreview(idx);
     updateFinishButton();
   }
+  persistActiveSession();
 }
 function toggleSetDone(idx, group, si, checked){
   sessionEntries[idx][group][si].done = checked;
@@ -1122,16 +1187,19 @@ function toggleSetDone(idx, group, si, checked){
     updateStatusPreview(idx);
     updateFinishButton();
   }
+  persistActiveSession();
 }
 function addWarmup(idx){
   const entry = sessionEntries[idx];
   const baseWeight = entry.sets[0] ? entry.sets[0].weight : 0;
   const suggested = Math.round((baseWeight * 0.5) / 5) * 5;
   entry.warmups.push({ weight: suggested, reps: null, done:false });
+  persistActiveSession();
   render();
 }
 function removeWarmup(idx, si){
   sessionEntries[idx].warmups.splice(si,1);
+  persistActiveSession();
   render();
 }
 function updateStatusPreview(idx){
@@ -1161,6 +1229,7 @@ function updateFinishButton(){
 }
 function removeSessionEntry(idx){
   sessionEntries.splice(idx,1);
+  persistActiveSession();
   render();
 }
 
@@ -1209,6 +1278,7 @@ function pickExercise(exId){
     warmups: [],
     sets: [{weight:suggested, reps:null, done:false}, {weight:suggested, reps:null, done:false}, {weight:suggested, reps:null, done:false}]
   });
+  persistActiveSession();
   closeModal();
   render();
 }
@@ -1274,8 +1344,23 @@ function saveSession(){
   editingWorkoutId = null;
   sessionStartTime = null;
   stopSessionTimer();
+  clearActiveSessionStorage();
   showToast(completed ? "Workout saved" : "Plan saved");
   nav({name:"home"});
+}
+
+function discardWorkout(){
+  showConfirmDialog("Discard this workout? Everything entered in this session will be lost.", ()=>{
+    sessionEntries = [];
+    sessionType = null;
+    sessionDate = todayStr();
+    editingWorkoutId = null;
+    sessionStartTime = null;
+    stopSessionTimer();
+    clearActiveSessionStorage();
+    showToast("Workout discarded");
+    nav({name:"home"});
+  });
 }
 
 /* ============ PROGRESS LIST ============ */
@@ -1634,10 +1719,21 @@ function importDataFile(input){
 
 
 /* ============ NAV / TOAST ============ */
-function viewBottomNav(){
+function viewBottomNav(showResumeBar){
   const active = (route.name === "log" || route.name === "session") ? "home" : (route.name === "detail" ? "progress" : route.name);
+  const resumeBar = showResumeBar ? `
+    <div class="active-session-bar" onclick="nav({name:'log'})">
+      <div class="active-session-dot"></div>
+      <div class="active-session-main">
+        <div class="active-session-title">${TYPE_META[sessionType].label} workout in progress</div>
+        <div class="active-session-sub">Tap to resume</div>
+      </div>
+      <div class="active-session-timer" id="activeSessionBarTimer">0:00</div>
+    </div>
+  ` : "";
   return `
     <div class="bottom-nav">
+      ${resumeBar}
       <div class="bottom-nav-inner">
         <button class="nav-btn ${active==='home'?'active':''}" onclick="nav({name:'home'})">${ICONS.home}Home</button>
         <button class="nav-btn ${active==='progress'?'active':''}" onclick="selectedPoint=null; nav({name:'progress'})">${ICONS.chart}Progress</button>
@@ -1655,14 +1751,17 @@ function showToast(msg){
 }
 
 function afterRender(){
-  if(route.name === "log" && sessionStartTime){
+  if(sessionStartTime){
     startSessionTimer();
   }else{
     stopSessionTimer();
   }
 }
 
-/* ============ WORKOUT TIMER ============ */
+/* ============ WORKOUT TIMER ============
+   Runs whenever a session is active, regardless of which tab is open, so the
+   elapsed time keeps counting in the background and stays accurate whichever
+   view (header timer or the resume bar) happens to be on screen. */
 function startSessionTimer(){
   stopSessionTimer();
   updateTimerDisplay();
@@ -1672,9 +1771,12 @@ function stopSessionTimer(){
   if(sessionTimerInterval){ clearInterval(sessionTimerInterval); sessionTimerInterval = null; }
 }
 function updateTimerDisplay(){
-  const el = document.getElementById("workoutTimer");
-  if(!el || !sessionStartTime) return;
-  el.textContent = fmtDuration(Math.floor((Date.now() - sessionStartTime)/1000));
+  if(!sessionStartTime) return;
+  const text = fmtDuration(Math.floor((Date.now() - sessionStartTime)/1000));
+  const headerEl = document.getElementById("workoutTimer");
+  if(headerEl) headerEl.textContent = text;
+  const barEl = document.getElementById("activeSessionBarTimer");
+  if(barEl) barEl.textContent = text;
 }
 function fmtDuration(totalSeconds){
   totalSeconds = Math.max(0, totalSeconds);
@@ -1692,6 +1794,7 @@ if("serviceWorker" in navigator){
   });
 }
 
+restoreActiveSessionIfAny();
 render();
 </script>
 </body>
