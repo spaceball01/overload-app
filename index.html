@@ -843,6 +843,13 @@ function restoreActiveSessionIfAny(){
   }catch(e){}
 }
 
+/* A session is "future" (a plan being drafted for later) when its date is
+   after today. Future plans never show a running timer — the clock only
+   ticks for a workout actually being performed today. */
+function isFuturePlan(){
+  return !!sessionType && sessionDate > todayStr();
+}
+
 function nav(r){ route = r; render(); window.scrollTo(0,0); }
 
 function render(){
@@ -856,7 +863,7 @@ function render(){
   else if(route.name === "detail") html = viewExerciseDetail(route.exId);
   else if(route.name === "manage") html = viewManage();
 
-  const showResumeBar = sessionType && route.name !== "log";
+  const showResumeBar = sessionType && route.name !== "log" && !isFuturePlan();
   html += viewBottomNav(showResumeBar);
   app.innerHTML = html;
   app.style.paddingBottom = showResumeBar ? "154px" : "96px";
@@ -1147,7 +1154,7 @@ function viewLog(){
     <div class="bar-top">
       <div class="back-btn" onclick="nav({name:'home'})">${ICONS.back}</div>
       <div class="bar-title" style="flex:1; min-width:0;">${meta.label}</div>
-      <div class="workout-timer" id="workoutTimer">0:00</div>
+      ${isFuturePlan() ? "" : `<div class="workout-timer" id="workoutTimer">0:00</div>`}
     </div>
     <div class="date-field-row">
       <label>Date</label>
@@ -1163,7 +1170,7 @@ function viewLog(){
   `;
 }
 
-function setSessionDate(val){ sessionDate = val; persistActiveSession(); }
+function setSessionDate(val){ sessionDate = val; persistActiveSession(); render(); }
 
 function moveEntry(idx, dir){
   const newIdx = idx + dir;
@@ -1341,7 +1348,7 @@ function saveSession(){
   });
   const w = upsertWorkout(editingWorkoutId, sessionType, sessionDate, entries);
   const completed = workoutStatus(w) === "completed";
-  if(completed && sessionStartTime){
+  if(completed && sessionStartTime && !isFuturePlan()){
     w.duration = Math.floor((Date.now() - sessionStartTime)/1000);
     saveData(DATA);
   }
@@ -1355,7 +1362,15 @@ function saveSession(){
 }
 
 function discardWorkout(){
-  showConfirmDialog("Discard this workout? Everything entered in this session will be lost.", ()=>{
+  const savedWorkoutId = editingWorkoutId;
+  const msg = savedWorkoutId
+    ? "Discard this workout? This planned workout will be permanently deleted."
+    : "Discard this workout? Everything entered in this session will be lost.";
+  showConfirmDialog(msg, ()=>{
+    if(savedWorkoutId){
+      DATA.workouts = DATA.workouts.filter(w=>w.id!==savedWorkoutId);
+      saveData(DATA);
+    }
     sessionEntries = [];
     sessionType = null;
     sessionDate = todayStr();
@@ -1800,7 +1815,7 @@ function showToast(msg){
 }
 
 function afterRender(){
-  if(sessionStartTime){
+  if(sessionStartTime && !isFuturePlan()){
     startSessionTimer();
   }else{
     stopSessionTimer();
