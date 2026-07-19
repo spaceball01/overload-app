@@ -321,7 +321,8 @@ body{
   cursor:pointer; letter-spacing:.3px;
 }
 .finish-btn{
-  margin:20px 20px 0; padding:17px;
+  display:block; width:100%;
+  margin:20px 0 0; padding:17px;
   background:linear-gradient(155deg, var(--accent-hi), var(--accent));
   color:#1B1500; border:none; border-radius:var(--radius-lg);
   font-weight:800; font-size:15.5px; letter-spacing:.5px; text-transform:uppercase;
@@ -329,10 +330,11 @@ body{
 }
 .finish-btn:disabled{opacity:.4;}
 .discard-btn{
-  margin:10px 20px 0; padding:15px;
-  background:none; color:var(--red); border:1px solid rgba(229,72,77,0.35); border-radius:var(--radius-lg);
-  font-weight:700; font-size:14px; letter-spacing:.3px; text-transform:uppercase;
-  cursor:pointer; text-align:center; width:calc(100% - 40px);
+  display:block; width:100%;
+  margin:12px 0 0; padding:17px;
+  background:none; color:var(--red); border:1.5px solid var(--red); border-radius:var(--radius-lg);
+  font-weight:800; font-size:15.5px; letter-spacing:.5px; text-transform:uppercase;
+  cursor:pointer; text-align:center;
 }
 .discard-btn:active{background:var(--red-soft);}
 
@@ -981,7 +983,7 @@ function viewHome(){
 
   return `
     <div class="top">
-      <div class="wordmark"><img class="wordmark-badge" src="icons/icon-512.png" alt="Overload mascot">OVERLOAD</div>
+      <div class="wordmark"><img class="wordmark-badge" src="icons/icon-512-badge.png" alt="Overload mascot">OVERLOAD</div>
       <div class="date-line">${today}</div>
       <div class="page-title">Train today</div>
     </div>
