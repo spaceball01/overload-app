@@ -497,12 +497,12 @@ body{
 /* ============ DATA LAYER ============ */
 const STORAGE_KEY = "overload_data_v2";
 
-const DEFAULT_EXERCISES = {
-  chest: ["Bench Press","Incline Bench Press","Dumbbell Press","Chest Fly","Dips"],
-  legs:  ["Back Squat","Front Squat","Leg Press","Romanian Deadlift","Walking Lunge"],
-  back:  ["Deadlift","Barbell Row","Lat Pulldown","Pull-Up","Seated Cable Row"],
-  upper: ["Overhead Press","Barbell Curl","Tricep Pushdown","Lateral Raise","Face Pull"]
-};
+const DEFAULT_EXERCISES = [
+  "Bench Press","Incline Bench Press","Dumbbell Press","Chest Fly","Dips",
+  "Back Squat","Front Squat","Leg Press","Romanian Deadlift","Walking Lunge",
+  "Deadlift","Barbell Row","Lat Pulldown","Pull-Up","Seated Cable Row",
+  "Overhead Press","Barbell Curl","Tricep Pushdown","Lateral Raise","Face Pull"
+];
 const TYPE_META = {
   chest: {label:"Chest", sub:"Push · Press · Fly"},
   legs:  {label:"Legs", sub:"Squat · Hinge · Lunge"},
@@ -512,15 +512,42 @@ const TYPE_META = {
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 
+/* Older versions of this app kept a separate exercise list per workout type
+   (chest/legs/back/upper), which meant the same lift (e.g. Bench Press) could
+   get created multiple times under different categories with separate history.
+   Exercises are now a single global list. This migrates any old per-type data,
+   merging same-named exercises into one and remapping past sessions to point
+   at the merged exercise so history isn't split or lost. */
+function migrateExerciseData(data){
+  if(!data.exercises || Array.isArray(data.exercises)) return data;
+  const merged = new Map(); // lowercase name -> {id, name, increment}
+  const idRemap = {}; // old id -> merged id
+  for(const type in data.exercises){
+    (data.exercises[type] || []).forEach(ex=>{
+      const key = (ex.name || "").trim().toLowerCase();
+      if(!key) return;
+      if(!merged.has(key)){
+        merged.set(key, {id: ex.id, name: ex.name.trim(), increment: ex.increment || 5});
+      }
+      idRemap[ex.id] = merged.get(key).id;
+    });
+  }
+  (data.workouts || []).forEach(w=>{
+    (w.entries || []).forEach(e=>{
+      if(idRemap[e.exId]) e.exId = idRemap[e.exId];
+    });
+  });
+  const migrated = { exercises: Array.from(merged.values()), workouts: data.workouts || [] };
+  saveData(migrated);
+  return migrated;
+}
+
 function loadData(){
   let raw = localStorage.getItem(STORAGE_KEY);
   if(raw){
-    try{ return JSON.parse(raw); }catch(e){}
+    try{ return migrateExerciseData(JSON.parse(raw)); }catch(e){}
   }
-  const data = { exercises:{}, workouts:[] };
-  for(const type in DEFAULT_EXERCISES){
-    data.exercises[type] = DEFAULT_EXERCISES[type].map(name => ({id:uid(), name, increment:5}));
-  }
+  const data = { exercises: DEFAULT_EXERCISES.map(name => ({id:uid(), name, increment:5})), workouts:[] };
   saveData(data);
   return data;
 }
@@ -566,22 +593,16 @@ function recordBackupDone(){
   saveBackupMeta(BACKUP_META);
 }
 
-function getExercises(type){ return DATA.exercises[type] || []; }
-function findExercise(id){
-  for(const type in DATA.exercises){
-    const ex = DATA.exercises[type].find(e=>e.id===id);
-    if(ex) return {...ex, type};
-  }
-  return null;
-}
-function addExercise(type, name, increment){
+function getExercises(){ return [...DATA.exercises].sort((a,b)=> a.name.localeCompare(b.name)); }
+function findExercise(id){ return DATA.exercises.find(e=>e.id===id) || null; }
+function addExercise(name, increment){
   const ex = {id:uid(), name:name.trim(), increment: increment || 5};
-  DATA.exercises[type].push(ex);
+  DATA.exercises.push(ex);
   saveData(DATA);
   return ex;
 }
-function deleteExercise(type, id){
-  DATA.exercises[type] = DATA.exercises[type].filter(e=>e.id!==id);
+function deleteExercise(id){
+  DATA.exercises = DATA.exercises.filter(e=>e.id!==id);
   saveData(DATA);
 }
 
@@ -1145,23 +1166,26 @@ function removeSessionEntry(idx){
 
 
 function openExercisePicker(){
-  const type = sessionType;
-  const list = getExercises(type);
+  const list = getExercises();
   const modal = document.getElementById("modal-root");
   modal.innerHTML = `
     <div class="sheet-backdrop" onclick="if(event.target===this) closeModal()">
       <div class="sheet">
         <div class="sheet-handle"></div>
-        <div class="sheet-title">Add ${TYPE_META[type].label} Exercise</div>
-        ${list.map(ex => `
-          <div class="pick-row" onclick="pickExercise('${ex.id}')">
-            <div>
-              <div class="pn">${ex.name}</div>
-              <div class="pd">±${ex.increment} lbs increment</div>
+        <div class="sheet-title">Add Exercise</div>
+        <input id="exercisePickerSearch" placeholder="Search exercises" oninput="filterExercisePicker(this.value)"
+          style="width:100%; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px 14px; font-size:14px; margin-bottom:10px;">
+        <div id="exercisePickerList">
+          ${list.map(ex => `
+            <div class="pick-row" data-name="${escapeHtml(ex.name.toLowerCase())}" onclick="pickExercise('${ex.id}')">
+              <div>
+                <div class="pn">${ex.name}</div>
+                <div class="pd">±${ex.increment} lbs increment</div>
+              </div>
+              <span class="chev">›</span>
             </div>
-            <span class="chev">›</span>
-          </div>
-        `).join("")}
+          `).join("")}
+        </div>
         <div class="new-ex-form">
           <input id="newExName" placeholder="New exercise name">
           <button onclick="createAndPick()">Add</button>
@@ -1169,6 +1193,12 @@ function openExercisePicker(){
       </div>
     </div>
   `;
+}
+function filterExercisePicker(term){
+  const t = term.trim().toLowerCase();
+  document.querySelectorAll('#exercisePickerList .pick-row').forEach(row=>{
+    row.style.display = row.dataset.name.includes(t) ? "" : "none";
+  });
 }
 function pickExercise(exId){
   const ex = findExercise(exId);
@@ -1186,7 +1216,7 @@ function createAndPick(){
   const input = document.getElementById("newExName");
   const name = input.value.trim();
   if(!name) return;
-  const ex = addExercise(sessionType, name, 5);
+  const ex = addExercise(name, 5);
   pickExercise(ex.id);
 }
 function closeModal(){ document.getElementById("modal-root").innerHTML = ""; }
@@ -1252,23 +1282,19 @@ function saveSession(){
 let progressSearch = "";
 function viewProgressList(){
   let blocks = "";
-  for(const type in TYPE_META){
-    const list = getExercises(type).filter(e => e.name.toLowerCase().includes(progressSearch.toLowerCase()));
-    if(list.length === 0) continue;
-    blocks += `<div class="cat-title">${TYPE_META[type].label}</div>`;
-    list.forEach(ex=>{
-      const h = getExerciseHistory(ex.id);
-      const last = h.length ? h[h.length-1] : null;
-      blocks += `
-        <div class="ex-row" onclick="detailBackTarget={name:'progress'}; nav({name:'detail', exId:'${ex.id}'})">
-          <div>
-            <div class="en">${ex.name}</div>
-            <div class="es">${last ? `${h.length} session${h.length>1?"s":""} · last ${last.weight} lbs` : "No sessions yet"}</div>
-          </div>
-          <span class="chev">›</span>
-        </div>`;
-    });
-  }
+  const list = getExercises().filter(e => e.name.toLowerCase().includes(progressSearch.toLowerCase()));
+  list.forEach(ex=>{
+    const h = getExerciseHistory(ex.id);
+    const last = h.length ? h[h.length-1] : null;
+    blocks += `
+      <div class="ex-row" onclick="detailBackTarget={name:'progress'}; nav({name:'detail', exId:'${ex.id}'})">
+        <div>
+          <div class="en">${ex.name}</div>
+          <div class="es">${last ? `${h.length} session${h.length>1?"s":""} · last ${last.weight} lbs` : "No sessions yet"}</div>
+        </div>
+        <span class="chev">›</span>
+      </div>`;
+  });
   if(!blocks) blocks = `<div class="empty-state" style="margin:0 20px;">No exercises match your search.</div>`;
 
   return `
@@ -1462,30 +1488,28 @@ function renderChart(history, valueKey){
 
 /* ============ MANAGE ============ */
 function viewManage(){
+  const list = getExercises();
   let blocks = "";
-  for(const type in TYPE_META){
-    const list = getExercises(type);
-    blocks += `<div class="cat-title">${TYPE_META[type].label}</div>`;
-    list.forEach(ex=>{
-      blocks += `
-        <div class="ex-row" style="cursor:default;">
-          <div>
-            <div class="en">${ex.name}</div>
-            <div class="es">±${ex.increment} lbs increment</div>
-          </div>
-          <div style="display:flex; align-items:center; gap:4px; flex-shrink:0;">
-            <button class="icon-btn" onclick="openRenameModal('${type}','${ex.id}')" aria-label="Rename exercise">${ICONS.edit}</button>
-            <button class="pick-del" onclick="removeExercise('${type}','${ex.id}')">Delete</button>
-          </div>
-        </div>`;
-    });
+  list.forEach(ex=>{
     blocks += `
-      <div class="manage-add">
-        <input id="add-${type}" placeholder="New ${TYPE_META[type].label.toLowerCase()} exercise" style="flex:1; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px 14px; font-size:13.5px;">
-        <button class="pick-del" style="color:var(--accent-hi); background:var(--bg-card); border:1px solid var(--border); border-radius:10px;" onclick="addFromManage('${type}')">Add</button>
-      </div>
-    `;
-  }
+      <div class="ex-row" style="cursor:default;">
+        <div>
+          <div class="en">${ex.name}</div>
+          <div class="es">±${ex.increment} lbs increment</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:4px; flex-shrink:0;">
+          <button class="icon-btn" onclick="openRenameModal('${ex.id}')" aria-label="Rename exercise">${ICONS.edit}</button>
+          <button class="pick-del" onclick="removeExercise('${ex.id}')">Delete</button>
+        </div>
+      </div>`;
+  });
+  if(!list.length) blocks = `<div class="empty-state" style="margin:0 20px;">No exercises yet. Add your first one below.</div>`;
+  blocks += `
+    <div class="manage-add">
+      <input id="add-exercise-input" placeholder="New exercise name" style="flex:1; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px 14px; font-size:13.5px;">
+      <button class="pick-del" style="color:var(--accent-hi); background:var(--bg-card); border:1px solid var(--border); border-radius:10px;" onclick="addFromManage()">Add</button>
+    </div>
+  `;
   return `
     <div class="top" style="padding-bottom:4px;">
       <div class="page-title">Exercises</div>
@@ -1513,17 +1537,17 @@ function viewManage(){
     ${blocks}
   `;
 }
-function removeExercise(type, id){
+function removeExercise(id){
   showConfirmDialog("Delete this exercise? Past history stays saved but it will leave the picker.", ()=>{
-    deleteExercise(type, id);
+    deleteExercise(id);
     render();
   });
 }
 function escapeHtml(str){
   return String(str).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
-function openRenameModal(type, id){
-  const ex = DATA.exercises[type].find(e=>e.id===id);
+function openRenameModal(id){
+  const ex = DATA.exercises.find(e=>e.id===id);
   if(!ex) return;
   const modal = document.getElementById("modal-root");
   modal.innerHTML = `
@@ -1533,7 +1557,7 @@ function openRenameModal(type, id){
         <div class="sheet-title">Rename Exercise</div>
         <div class="new-ex-form" style="margin-top:0;">
           <input id="renameInput" value="${escapeHtml(ex.name)}" placeholder="Exercise name">
-          <button onclick="saveRenameExercise('${type}','${id}')">Save</button>
+          <button onclick="saveRenameExercise('${id}')">Save</button>
         </div>
         <div class="plan-hint" style="text-align:left; margin-top:12px;">This updates the name everywhere, including past logged sessions for this exercise.</div>
       </div>
@@ -1542,28 +1566,28 @@ function openRenameModal(type, id){
   const input = document.getElementById("renameInput");
   if(input){ input.focus(); input.select(); }
 }
-function saveRenameExercise(type, id){
+function saveRenameExercise(id){
   const input = document.getElementById("renameInput");
   const name = input.value.trim();
   if(!name) return;
-  renameExercise(type, id, name);
+  renameExercise(id, name);
   closeModal();
   showToast("Exercise renamed");
   render();
 }
-function renameExercise(type, id, newName){
-  const ex = DATA.exercises[type].find(e=>e.id===id);
+function renameExercise(id, newName){
+  const ex = DATA.exercises.find(e=>e.id===id);
   if(ex) ex.name = newName;
   DATA.workouts.forEach(w=>{
     w.entries.forEach(e=>{ if(e.exId === id) e.name = newName; });
   });
   saveData(DATA);
 }
-function addFromManage(type){
-  const input = document.getElementById(`add-${type}`);
+function addFromManage(){
+  const input = document.getElementById("add-exercise-input");
   const name = input.value.trim();
   if(!name) return;
-  addExercise(type, name, 5);
+  addExercise(name, 5);
   render();
 }
 
@@ -1598,7 +1622,7 @@ function importDataFile(input){
       return;
     }
     if(!confirm("Import this backup? This will replace all exercises and workout history currently in this app.")) return;
-    DATA = parsed;
+    DATA = migrateExerciseData(parsed);
     saveData(DATA);
     recordBackupDone();
     showToast("Data imported");
