@@ -113,6 +113,18 @@ body{
   font-family:var(--font-display); font-weight:800; font-size:19px;
   letter-spacing:0.5px; text-transform:uppercase; text-align:center;
 }
+.type-card-edit{
+  position:absolute; top:8px; right:8px; width:26px; height:26px;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(0,0,0,0.25); border:none; border-radius:50%;
+  color:var(--text-dim); cursor:pointer;
+}
+.type-card-edit svg{width:13px; height:13px;}
+.type-card-edit:active{background:rgba(0,0,0,0.4); color:var(--text);}
+.type-card-new{
+  background:none; border:1.5px dashed var(--border);
+}
+.type-card-new .tname{color:var(--accent-hi); font-size:15px;}
 
 /* Recent sessions */
 .session-row{
@@ -532,11 +544,11 @@ const DEFAULT_EXERCISES = [
   "Deadlift","Barbell Row","Lat Pulldown","Pull-Up","Seated Cable Row",
   "Overhead Press","Barbell Curl","Tricep Pushdown","Lateral Raise","Face Pull"
 ];
-const TYPE_META = {
-  chest: {label:"Chest", sub:"Push · Press · Fly"},
-  legs:  {label:"Legs", sub:"Squat · Hinge · Lunge"},
-  back:  {label:"Back", sub:"Pull · Row · Hinge"},
-  upper: {label:"Upper Body", sub:"Shoulders · Arms"}
+const LEGACY_TYPE_META = {
+  chest: {label:"Chest"},
+  legs:  {label:"Legs"},
+  back:  {label:"Back"},
+  upper: {label:"Upper Body"}
 };
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
@@ -548,7 +560,7 @@ function uid(){ return Date.now().toString(36) + Math.random().toString(36).slic
    merging same-named exercises into one and remapping past sessions to point
    at the merged exercise so history isn't split or lost. */
 function migrateExerciseData(data){
-  if(!data.exercises || Array.isArray(data.exercises)) return data;
+  if(!data.exercises || Array.isArray(data.exercises)) return migrateTemplates(data);
   const merged = new Map(); // lowercase name -> {id, name, increment}
   const idRemap = {}; // old id -> merged id
   for(const type in data.exercises){
@@ -568,7 +580,35 @@ function migrateExerciseData(data){
   });
   const migrated = { exercises: Array.from(merged.values()), workouts: data.workouts || [] };
   saveData(migrated);
-  return migrated;
+  return migrateTemplates(migrated);
+}
+
+/* Older versions of this app had 4 fixed workout types (Chest/Legs/Back/Upper
+   Body) instead of user-defined templates. This creates an editable template
+   for each one — reusing the same id as the old type key, so every past
+   workout's `type` field still points at the right template with no
+   remapping needed. Each template is pre-loaded with the exercises most
+   commonly logged under that type historically, as a helpful starting point. */
+function migrateTemplates(data){
+  if(data.templates && Array.isArray(data.templates)) return data;
+  const templates = [];
+  for(const key in LEGACY_TYPE_META){
+    const hasHistory = (data.workouts||[]).some(w=>w.type===key);
+    if(!hasHistory) continue;
+    const freq = new Map();
+    (data.workouts||[]).forEach(w=>{
+      if(w.type !== key) return;
+      (w.entries||[]).forEach(e=>{ freq.set(e.exId, (freq.get(e.exId)||0)+1); });
+    });
+    const exerciseIds = Array.from(freq.entries())
+      .sort((a,b)=> b[1]-a[1])
+      .map(([exId])=>exId)
+      .filter(exId => (data.exercises||[]).some(ex=>ex.id===exId));
+    templates.push({ id:key, name:LEGACY_TYPE_META[key].label, exerciseIds });
+  }
+  data.templates = templates;
+  saveData(data);
+  return data;
 }
 
 function loadData(){
@@ -576,7 +616,7 @@ function loadData(){
   if(raw){
     try{ return migrateExerciseData(JSON.parse(raw)); }catch(e){}
   }
-  const data = { exercises: DEFAULT_EXERCISES.map(name => ({id:uid(), name, increment:5})), workouts:[] };
+  const data = { exercises: DEFAULT_EXERCISES.map(name => ({id:uid(), name, increment:5})), workouts:[], templates:[] };
   saveData(data);
   return data;
 }
@@ -635,6 +675,23 @@ function deleteExercise(id){
   saveData(DATA);
 }
 
+function getTemplates(){ return DATA.templates || []; }
+function getTemplate(id){ return (DATA.templates||[]).find(t=>t.id===id) || null; }
+function templateLabel(id){ const t = getTemplate(id); return t ? t.name : "Workout"; }
+function buildEntriesFromTemplate(templateId){
+  const t = getTemplate(templateId);
+  if(!t) return [];
+  return t.exerciseIds.map(exId=>{
+    const ex = findExercise(exId);
+    if(!ex) return null;
+    const suggested = (getSuggestedWeight(exId)?.weight) || 0;
+    return {
+      exId, name: ex.name, warmups: [],
+      sets: [{weight:suggested, reps:null, done:false}, {weight:suggested, reps:null, done:false}, {weight:suggested, reps:null, done:false}]
+    };
+  }).filter(Boolean);
+}
+
 function computeStatus(reps){
   if(reps.some(r => r < 6)) return "red";
   if(reps.every(r => r >= 10)) return "green";
@@ -690,7 +747,7 @@ function deleteWorkout(workoutId){
   const w = DATA.workouts.find(w=>w.id===workoutId);
   if(!w) return;
   const isPlanned = workoutStatus(w) !== "completed";
-  const label = `${TYPE_META[w.type].label} · ${fmtDate(w.date)}`;
+  const label = `${templateLabel(w.type)} · ${fmtDate(w.date)}`;
   const msg = isPlanned ? `Delete this planned workout (${label})?` : `Delete this session (${label})? This can't be undone.`;
   showConfirmDialog(msg, ()=>{
     DATA.workouts = DATA.workouts.filter(w=>w.id!==workoutId);
@@ -809,6 +866,10 @@ let sessionEntries = []; // working state for the log/plan builder screen
 let sessionType = null;
 let sessionDate = todayStr();
 let editingWorkoutId = null; // set when continuing an existing planned workout
+
+let templateDraftId = null; // set when editing an existing template, null when creating a new one
+let templateDraftName = "";
+let templateDraftExerciseIds = [];
 let sessionStartTime = null; // Date.now() when this log screen was entered, for the workout timer
 let sessionTimerInterval = null;
 
@@ -862,6 +923,7 @@ function render(){
   else if(route.name === "day") html = viewDayDetail(route.date);
   else if(route.name === "detail") html = viewExerciseDetail(route.exId);
   else if(route.name === "manage") html = viewManage();
+  else if(route.name === "templateEdit") html = viewTemplateEdit();
 
   const showResumeBar = sessionType && route.name !== "log" && !isFuturePlan();
   html += viewBottomNav(showResumeBar);
@@ -931,13 +993,18 @@ function viewHome(){
   const prSet = getAllPRKeys();
 
   let cards = "";
-  for(const type in TYPE_META){
-    const m = TYPE_META[type];
+  const templates = getTemplates();
+  templates.forEach(t=>{
     cards += `
-      <div class="type-card" onclick="startLog('${type}')">
-        <div class="tname">${m.label}</div>
+      <div class="type-card" onclick="startLog('${t.id}')">
+        <button class="type-card-edit" onclick="event.stopPropagation(); openTemplateEditor('${t.id}')" aria-label="Edit template">${ICONS.edit}</button>
+        <div class="tname">${escapeHtml(t.name)}</div>
       </div>`;
-  }
+  });
+  cards += `
+    <div class="type-card type-card-new" onclick="openTemplateEditor(null)">
+      <div class="tname">+ New Template</div>
+    </div>`;
 
   let plans = "";
   plannedWorkouts.forEach(w=>{
@@ -946,7 +1013,7 @@ function viewHome(){
       <div class="plan-row" onclick="continuePlanned('${w.id}')">
         <span class="plan-badge">${fmtDateSmart(w.date)}</span>
         <div class="plan-main">
-          <div class="plan-type">${TYPE_META[w.type].label} · ${w.entries.length} exercise${w.entries.length>1?"s":""}</div>
+          <div class="plan-type">${templateLabel(w.type)} · ${w.entries.length} exercise${w.entries.length>1?"s":""}</div>
           <div class="plan-date">${doneCount>0 ? `${doneCount} of ${w.entries.length} logged` : "Not started yet"}</div>
         </div>
         <button class="session-del" onclick="event.stopPropagation(); deleteWorkout('${w.id}')" aria-label="Delete plan">${ICONS.trash}</button>
@@ -966,7 +1033,7 @@ function viewHome(){
         <div class="session-row">
           <div class="session-dot" style="background:${dotColor}"></div>
           <div class="session-main" onclick="nav({name:'session', workoutId:'${w.id}'})">
-            <div class="session-type">${isPR ? `<span class="pr-star-inline">${ICONS.star}</span>` : ""}${TYPE_META[w.type].label} · ${w.entries.length} exercise${w.entries.length>1?"s":""}</div>
+            <div class="session-type">${isPR ? `<span class="pr-star-inline">${ICONS.star}</span>` : ""}${templateLabel(w.type)} · ${w.entries.length} exercise${w.entries.length>1?"s":""}</div>
             <div class="session-date">${fmtDate(w.date)}</div>
           </div>
           <div class="session-vol" onclick="nav({name:'session', workoutId:'${w.id}'})">${totalVol.toLocaleString()}<span>lbs vol.</span></div>
@@ -999,7 +1066,8 @@ function viewHome(){
     </div>
     ${backupReminder}
     <div class="section">
-      <div class="section-label">Workout type</div>
+      <div class="section-label">Workout templates</div>
+      ${templates.length === 0 ? `<div class="plan-hint" style="margin:0 0 10px;">Create a template for any workout you do regularly — Push Day, Cardio, Home Workout, anything — and preload it with exercises.</div>` : ""}
       <div class="type-grid">${cards}</div>
     </div>
     <div class="section">
@@ -1018,9 +1086,9 @@ function viewHome(){
   `;
 }
 
-function startLog(type){
-  sessionType = type;
-  sessionEntries = [];
+function startLog(templateId){
+  sessionType = templateId;
+  sessionEntries = buildEntriesFromTemplate(templateId);
   sessionDate = todayStr();
   editingWorkoutId = null;
   sessionStartTime = Date.now();
@@ -1030,14 +1098,14 @@ function startLog(type){
 
 function openPlanTypePicker(){
   const modal = document.getElementById("modal-root");
-  let rows = "";
-  for(const type in TYPE_META){
-    const m = TYPE_META[type];
-    rows += `
-      <div class="pick-row" onclick="beginPlan('${type}')">
-        <div><div class="pn">${m.label}</div><div class="pd">${m.sub}</div></div>
+  const templates = getTemplates();
+  let rows = templates.map(t => `
+      <div class="pick-row" onclick="beginPlan('${t.id}')">
+        <div><div class="pn">${escapeHtml(t.name)}</div><div class="pd">${t.exerciseIds.length ? `${t.exerciseIds.length} exercise${t.exerciseIds.length>1?"s":""} preloaded` : "No exercises preloaded"}</div></div>
         <span class="chev">›</span>
-      </div>`;
+      </div>`).join("");
+  if(!templates.length){
+    rows = `<div class="plan-hint" style="text-align:left; margin-top:0;">You don't have any workout templates yet. Create one from the Home tab first.</div>`;
   }
   modal.innerHTML = `
     <div class="sheet-backdrop" onclick="if(event.target===this) closeModal()">
@@ -1049,9 +1117,9 @@ function openPlanTypePicker(){
     </div>
   `;
 }
-function beginPlan(type){
-  sessionType = type;
-  sessionEntries = [];
+function beginPlan(templateId){
+  sessionType = templateId;
+  sessionEntries = buildEntriesFromTemplate(templateId);
   sessionDate = tomorrowStr();
   editingWorkoutId = null;
   sessionStartTime = Date.now();
@@ -1101,7 +1169,7 @@ function renderSetLine(idx, group, si, set, label, removable){
 
 function viewLog(){
   const type = sessionType;
-  const meta = TYPE_META[type];
+  const meta = { label: templateLabel(type) };
 
   let cards = "";
   sessionEntries.forEach((entry, idx)=>{
@@ -1246,7 +1314,9 @@ function removeSessionEntry(idx){
 }
 
 
-function openExercisePicker(){
+let exercisePickerTarget = "session"; // "session" | "template"
+function openExercisePicker(target){
+  exercisePickerTarget = target || "session";
   const list = getExercises();
   const modal = document.getElementById("modal-root");
   modal.innerHTML = `
@@ -1282,6 +1352,12 @@ function filterExercisePicker(term){
   });
 }
 function pickExercise(exId){
+  if(exercisePickerTarget === "template"){
+    if(!templateDraftExerciseIds.includes(exId)) templateDraftExerciseIds.push(exId);
+    closeModal();
+    render();
+    return;
+  }
   const ex = findExercise(exId);
   if(sessionEntries.some(e=>e.exId===exId)){ closeModal(); return; }
   const suggested = (getSuggestedWeight(exId)?.weight) || 0;
@@ -1383,6 +1459,84 @@ function discardWorkout(){
   });
 }
 
+/* ============ TEMPLATE EDITOR ============ */
+function openTemplateEditor(templateId){
+  if(templateId){
+    const t = getTemplate(templateId);
+    if(!t) return;
+    templateDraftId = t.id;
+    templateDraftName = t.name;
+    templateDraftExerciseIds = [...t.exerciseIds];
+  }else{
+    templateDraftId = null;
+    templateDraftName = "";
+    templateDraftExerciseIds = [];
+  }
+  nav({name:"templateEdit"});
+}
+function viewTemplateEdit(){
+  const isNew = !templateDraftId;
+  const rows = templateDraftExerciseIds.map(exId=>{
+    const ex = findExercise(exId);
+    if(!ex) return "";
+    return `
+      <div class="ex-row" style="cursor:default;">
+        <div><div class="en">${escapeHtml(ex.name)}</div></div>
+        <button class="pick-del" onclick="removeExerciseFromDraft('${exId}')">Remove</button>
+      </div>`;
+  }).join("");
+  return `
+    <div class="bar-top">
+      <div class="back-btn" onclick="nav({name:'home'})">${ICONS.back}</div>
+      <div class="bar-title" style="flex:1; min-width:0;">${isNew ? "New Template" : "Edit Template"}</div>
+    </div>
+    <div class="section" style="margin-top:14px;">
+      <div class="section-label">Template name</div>
+      <input id="templateNameInput" value="${escapeHtml(templateDraftName)}" placeholder="e.g. Cardio, Home Workout"
+        oninput="templateDraftName=this.value"
+        style="width:100%; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:14px; font-size:15px;">
+    </div>
+    <div class="section">
+      <div class="section-label">Pre-loaded exercises</div>
+      <div class="plan-hint" style="margin:0 20px 10px;">These exercises are automatically added whenever you start a workout from this template. You can still add or remove exercises during any individual session.</div>
+      ${rows || `<div class="empty-state" style="margin:0 20px;">No exercises added yet.</div>`}
+      <div class="add-exercise-btn" onclick="openExercisePicker('template')">+ Add Exercise</div>
+    </div>
+    <div style="padding:0 20px; margin-top:10px;">
+      <button class="finish-btn" onclick="saveTemplateDraft()">Save Template</button>
+      ${!isNew ? `<button class="discard-btn" onclick="deleteTemplateFromEditor()">Delete Template</button>` : ""}
+    </div>
+  `;
+}
+function removeExerciseFromDraft(exId){
+  templateDraftExerciseIds = templateDraftExerciseIds.filter(id=>id!==exId);
+  render();
+}
+function saveTemplateDraft(){
+  const input = document.getElementById("templateNameInput");
+  const name = (input ? input.value : templateDraftName).trim();
+  if(!name){ showToast("Please enter a template name"); return; }
+  if(templateDraftId){
+    const t = getTemplate(templateDraftId);
+    if(t){ t.name = name; t.exerciseIds = [...templateDraftExerciseIds]; }
+  }else{
+    if(!DATA.templates) DATA.templates = [];
+    DATA.templates.push({ id: uid(), name, exerciseIds: [...templateDraftExerciseIds] });
+  }
+  saveData(DATA);
+  showToast("Template saved");
+  nav({name:"home"});
+}
+function deleteTemplateFromEditor(){
+  const id = templateDraftId;
+  showConfirmDialog("Delete this template? Past workouts logged with it are kept, but it will no longer appear as an option to start a new session.", ()=>{
+    DATA.templates = (DATA.templates||[]).filter(t=>t.id!==id);
+    saveData(DATA);
+    showToast("Template deleted");
+    nav({name:"home"});
+  });
+}
+
 /* ============ PROGRESS LIST ============ */
 let progressSearch = "";
 function viewProgressList(){
@@ -1437,7 +1591,7 @@ function viewDayDetail(dateKey){
         <div class="session-row">
           <div class="session-dot" style="background:${dotColor}"></div>
           <div class="session-main" onclick="nav({name:'session', workoutId:'${w.id}'})">
-            <div class="session-type">${isPR ? `<span class="pr-star-inline">${ICONS.star}</span>` : ""}${TYPE_META[w.type].label} · ${w.entries.length} exercise${w.entries.length>1?"s":""}</div>
+            <div class="session-type">${isPR ? `<span class="pr-star-inline">${ICONS.star}</span>` : ""}${templateLabel(w.type)} · ${w.entries.length} exercise${w.entries.length>1?"s":""}</div>
             <div class="session-date">${fmtDate(w.date)}</div>
           </div>
           <div class="session-vol" onclick="nav({name:'session', workoutId:'${w.id}'})">${totalVol.toLocaleString()}<span>lbs vol.</span></div>
@@ -1489,7 +1643,7 @@ function viewSessionDetail(workoutId){
   return `
     <div class="bar-top">
       <div class="back-btn" onclick="nav({name:'home'})">${ICONS.back}</div>
-      <div class="bar-title">${TYPE_META[w.type].label}</div>
+      <div class="bar-title">${templateLabel(w.type)}</div>
     </div>
     <div class="stat-strip">
       <div class="stat-chip"><div class="sv">${fmtDate(w.date)}</div><div class="sl">Date</div></div>
@@ -1784,12 +1938,12 @@ function importDataFile(input){
 
 /* ============ NAV / TOAST ============ */
 function viewBottomNav(showResumeBar){
-  const active = (route.name === "log" || route.name === "session" || route.name === "day") ? "home" : (route.name === "detail" ? "progress" : route.name);
+  const active = (route.name === "log" || route.name === "session" || route.name === "day" || route.name === "templateEdit") ? "home" : (route.name === "detail" ? "progress" : route.name);
   const resumeBar = showResumeBar ? `
     <div class="active-session-bar" onclick="nav({name:'log'})">
       <div class="active-session-dot"></div>
       <div class="active-session-main">
-        <div class="active-session-title">${TYPE_META[sessionType].label} workout in progress</div>
+        <div class="active-session-title">${templateLabel(sessionType)} workout in progress</div>
         <div class="active-session-sub">Tap to resume</div>
       </div>
       <div class="active-session-timer" id="activeSessionBarTimer">0:00</div>
