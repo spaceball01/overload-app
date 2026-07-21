@@ -924,6 +924,7 @@ function render(){
   else if(route.name === "detail") html = viewExerciseDetail(route.exId);
   else if(route.name === "manage") html = viewManage();
   else if(route.name === "templateEdit") html = viewTemplateEdit();
+  else if(route.name === "startWorkout") html = viewStartWorkout();
 
   const showResumeBar = sessionType && route.name !== "log" && !isFuturePlan();
   html += viewBottomNav(showResumeBar);
@@ -992,20 +993,6 @@ function viewHome(){
   const today = new Date().toLocaleDateString(undefined,{weekday:"long", month:"long", day:"numeric"});
   const prSet = getAllPRKeys();
 
-  let cards = "";
-  const templates = getTemplates();
-  templates.forEach(t=>{
-    cards += `
-      <div class="type-card" onclick="startLog('${t.id}')">
-        <button class="type-card-edit" onclick="event.stopPropagation(); openTemplateEditor('${t.id}')" aria-label="Edit template">${ICONS.edit}</button>
-        <div class="tname">${escapeHtml(t.name)}</div>
-      </div>`;
-  });
-  cards += `
-    <div class="type-card type-card-new" onclick="openTemplateEditor(null)">
-      <div class="tname">+ New Template</div>
-    </div>`;
-
   let plans = "";
   plannedWorkouts.forEach(w=>{
     const doneCount = w.entries.filter(e=>e.status!==null).length;
@@ -1066,9 +1053,7 @@ function viewHome(){
     </div>
     ${backupReminder}
     <div class="section">
-      <div class="section-label">Workout templates</div>
-      ${templates.length === 0 ? `<div class="plan-hint" style="margin:0 0 10px;">Create a template for any workout you do regularly — Push Day, Cardio, Home Workout, anything — and preload it with exercises.</div>` : ""}
-      <div class="type-grid">${cards}</div>
+      <button class="finish-btn" style="margin-top:0;" onclick="nav({name:'startWorkout'})">Start Workout</button>
     </div>
     <div class="section">
       <div class="section-label">This month</div>
@@ -1459,8 +1444,40 @@ function discardWorkout(){
   });
 }
 
+/* ============ START WORKOUT ============ */
+function viewStartWorkout(){
+  const templates = getTemplates();
+  let rows = templates.map(t => `
+      <div class="pick-row" onclick="startLog('${t.id}')">
+        <div><div class="pn">${escapeHtml(t.name)}</div><div class="pd">${t.exerciseIds.length ? `${t.exerciseIds.length} exercise${t.exerciseIds.length===1?"":"s"} preloaded` : "No exercises preloaded"}</div></div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <button class="icon-btn" onclick="event.stopPropagation(); openTemplateEditor('${t.id}', {name:'startWorkout'})" aria-label="Edit template">${ICONS.edit}</button>
+          <span class="chev">›</span>
+        </div>
+      </div>`).join("");
+  if(!templates.length){
+    rows = `<div class="empty-state" style="margin:0;">You haven't created any workout templates yet — create one below.</div>`;
+  }
+  return `
+    <div class="bar-top">
+      <div class="back-btn" onclick="nav({name:'home'})">${ICONS.back}</div>
+      <div class="bar-title">Start Workout</div>
+    </div>
+    <div class="section" style="margin-top:14px;">
+      <div class="section-label">Select workout from template</div>
+      ${rows}
+    </div>
+    <div class="section">
+      <div class="section-label">Create new workout</div>
+      <div class="add-exercise-btn" onclick="openTemplateEditor(null, {name:'startWorkout'})">+ Create New Workout</div>
+    </div>
+  `;
+}
+
 /* ============ TEMPLATE EDITOR ============ */
-function openTemplateEditor(templateId){
+let templateEditorReturnRoute = {name:"home"};
+function openTemplateEditor(templateId, returnRoute){
+  templateEditorReturnRoute = returnRoute || {name:"home"};
   if(templateId){
     const t = getTemplate(templateId);
     if(!t) return;
@@ -1487,7 +1504,7 @@ function viewTemplateEdit(){
   }).join("");
   return `
     <div class="bar-top">
-      <div class="back-btn" onclick="nav({name:'home'})">${ICONS.back}</div>
+      <div class="back-btn" onclick="nav(templateEditorReturnRoute)">${ICONS.back}</div>
       <div class="bar-title" style="flex:1; min-width:0;">${isNew ? "New Template" : "Edit Template"}</div>
     </div>
     <div class="section" style="margin-top:14px;">
@@ -1525,7 +1542,7 @@ function saveTemplateDraft(){
   }
   saveData(DATA);
   showToast("Template saved");
-  nav({name:"home"});
+  nav(templateEditorReturnRoute);
 }
 function deleteTemplateFromEditor(){
   const id = templateDraftId;
@@ -1533,9 +1550,10 @@ function deleteTemplateFromEditor(){
     DATA.templates = (DATA.templates||[]).filter(t=>t.id!==id);
     saveData(DATA);
     showToast("Template deleted");
-    nav({name:"home"});
+    nav(templateEditorReturnRoute);
   });
 }
+
 
 /* ============ PROGRESS LIST ============ */
 let progressSearch = "";
@@ -1938,7 +1956,7 @@ function importDataFile(input){
 
 /* ============ NAV / TOAST ============ */
 function viewBottomNav(showResumeBar){
-  const active = (route.name === "log" || route.name === "session" || route.name === "day" || route.name === "templateEdit") ? "home" : (route.name === "detail" ? "progress" : route.name);
+  const active = (route.name === "log" || route.name === "session" || route.name === "day" || route.name === "templateEdit" || route.name === "startWorkout") ? "home" : (route.name === "detail" ? "progress" : route.name);
   const resumeBar = showResumeBar ? `
     <div class="active-session-bar" onclick="nav({name:'log'})">
       <div class="active-session-dot"></div>
