@@ -911,7 +911,12 @@ function isFuturePlan(){
   return !!sessionType && sessionDate > todayStr();
 }
 
-function nav(r){ route = r; render(); window.scrollTo(0,0); }
+function nav(r){
+  route = r;
+  history.pushState({route:r}, "", "");
+  render();
+  window.scrollTo(0,0);
+}
 
 function render(){
   const app = document.getElementById("app");
@@ -1101,6 +1106,7 @@ function openPlanTypePicker(){
       </div>
     </div>
   `;
+  pushModalState();
 }
 function beginPlan(templateId){
   sessionType = templateId;
@@ -1329,6 +1335,7 @@ function openExercisePicker(target){
       </div>
     </div>
   `;
+  pushModalState();
 }
 function filterExercisePicker(term){
   const t = term.trim().toLowerCase();
@@ -1362,7 +1369,18 @@ function createAndPick(){
   const ex = addExercise(name, 5);
   pickExercise(ex.id);
 }
-function closeModal(){ document.getElementById("modal-root").innerHTML = ""; }
+let modalHistoryPushed = false;
+function pushModalState(){
+  history.pushState({modal:true}, "", "");
+  modalHistoryPushed = true;
+}
+function closeModal(){
+  document.getElementById("modal-root").innerHTML = "";
+  if(modalHistoryPushed){
+    modalHistoryPushed = false;
+    history.back();
+  }
+}
 
 let _pendingConfirmAction = null;
 function showConfirmDialog(message, onYes){
@@ -1381,6 +1399,7 @@ function showConfirmDialog(message, onYes){
       </div>
     </div>
   `;
+  pushModalState();
 }
 function runConfirmedAction(){
   const fn = _pendingConfirmAction;
@@ -1884,6 +1903,7 @@ function openRenameModal(id){
       </div>
     </div>
   `;
+  pushModalState();
   const input = document.getElementById("renameInput");
   if(input){ input.focus(); input.select(); }
 }
@@ -2031,6 +2051,18 @@ if("serviceWorker" in navigator){
 }
 
 restoreActiveSessionIfAny();
+history.replaceState({route}, "", "");
+window.addEventListener("popstate", (e)=>{
+  const modalRoot = document.getElementById("modal-root");
+  if(modalRoot && modalRoot.innerHTML.trim() !== ""){
+    // Back closes an open sheet/dialog first, rather than leaving the page behind it.
+    modalRoot.innerHTML = "";
+    modalHistoryPushed = false;
+    return;
+  }
+  route = (e.state && e.state.route) || {name:"home"};
+  render();
+});
 render();
 </script>
 </body>
