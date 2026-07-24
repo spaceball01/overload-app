@@ -263,7 +263,57 @@ body{
 }
 .stretch-row.stretch-add:active{background:var(--accent-soft);}
 .stretch-label{font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:1.5px; font-weight:700;}
-.stretch-timer{font-family:var(--font-mono); font-size:14px; color:var(--accent-hi); font-weight:700; flex:1; text-align:right; margin-right:4px;}
+.stretch-timer{font-family:var(--font-mono); font-size:14px; color:var(--accent-hi); font-weight:700; flex:1; text-align:right; margin-right:4px; cursor:pointer;}
+.stretch-pause-btn{
+  width:30px; height:30px; flex-shrink:0; border-radius:50%; padding:0;
+  background:var(--bg-card-2); border:1px solid var(--border);
+  display:flex; align-items:center; justify-content:center;
+  color:var(--accent-hi); cursor:pointer;
+}
+.stretch-pause-btn svg{width:13px; height:13px;}
+.stretch-pause-btn:active{background:var(--accent-soft);}
+
+/* Large stretch timer modal */
+.stretch-modal-sheet{ text-align:center; }
+.stretch-big-wrap{
+  position:relative; display:flex; align-items:center; justify-content:center;
+  height:210px; margin:6px 0 20px;
+}
+.stretch-pulse-ring{
+  position:absolute; width:160px; height:160px; border-radius:50%;
+  border:2px solid var(--accent);
+  animation:stretchPulse 2.6s ease-in-out infinite;
+}
+.stretch-pulse-ring.is-paused{ animation-play-state:paused; opacity:.35; }
+@keyframes stretchPulse{
+  0%{ transform:scale(0.86); opacity:.5; }
+  50%{ transform:scale(1.08); opacity:1; }
+  100%{ transform:scale(0.86); opacity:.5; }
+}
+.stretch-big-timer{
+  position:relative; z-index:1;
+  font-family:var(--font-mono); font-weight:800; font-size:42px; color:var(--accent-hi);
+  letter-spacing:.5px;
+}
+.stretch-modal-controls{
+  display:flex; flex-direction:column; align-items:center; gap:16px; margin-bottom:20px;
+}
+.stretch-big-pause-btn{
+  width:58px; height:58px; border-radius:50%; flex-shrink:0; padding:0;
+  background:var(--bg-card); border:1px solid var(--border);
+  display:flex; align-items:center; justify-content:center;
+  color:var(--accent-hi); cursor:pointer;
+}
+.stretch-big-pause-btn svg{width:23px; height:23px;}
+.stretch-big-pause-btn:active{background:var(--accent-soft);}
+.stretch-modal-check-row{ display:flex; align-items:center; justify-content:center; gap:12px; }
+.stretch-modal-check-label{ font-size:13.5px; color:var(--text-dim); font-weight:600; }
+.stretch-modal-close-btn{
+  display:block; width:100%; padding:15px; border-radius:var(--radius-md);
+  background:var(--bg-card-2); border:1px solid var(--border); color:var(--text);
+  font-weight:700; font-size:14.5px; cursor:pointer;
+}
+.stretch-modal-close-btn:active{background:var(--accent-soft);}
 
 /* Exercise entry cards in Log view */
 .exercise-card{
@@ -937,8 +987,9 @@ let sessionStartTime = null; // Date.now() when this log screen was entered, for
 let sessionTimerInterval = null;
 let sessionPausedAt = null; // Date.now() when the workout was paused; null while running
 
-let stretchStartTime = null; // Date.now() when the stretch timer started; null if not started
-let stretchDuration = null;  // seconds, set once the stretch is checked off as done
+let stretchStartTime = null; // Date.now() when the current running segment started; null if never started
+let stretchPausedAt = null;  // Date.now() when paused (or locked done); null while actively ticking
+let stretchDone = false;     // whether the checkbox is checked off as complete
 let stretchTimerInterval = null;
 
 // Exercise cards whose all-sets-complete state has been manually expanded
@@ -957,7 +1008,7 @@ function persistActiveSession(){
       type: sessionType, date: sessionDate, editingWorkoutId,
       startTime: sessionStartTime, entries: sessionEntries,
       pausedAt: sessionPausedAt,
-      stretchStartTime, stretchDuration,
+      stretchStartTime, stretchPausedAt, stretchDone,
       expanded: Array.from(expandedOverrides)
     }));
   }catch(e){}
@@ -978,7 +1029,15 @@ function restoreActiveSessionIfAny(){
     sessionEntries = s.entries || [];
     sessionPausedAt = s.pausedAt ?? null;
     stretchStartTime = s.stretchStartTime ?? null;
-    stretchDuration = s.stretchDuration ?? null;
+    stretchPausedAt = s.stretchPausedAt ?? null;
+    stretchDone = s.stretchDone ?? false;
+    if(s.stretchDuration !== undefined && s.stretchDuration !== null && !stretchDone){
+      // Legacy shape (pre-pause-button): a completed stretch stored only a
+      // final duration. Convert it into the new frozen "done" state.
+      stretchDone = true;
+      stretchPausedAt = Date.now();
+      stretchStartTime = Date.now() - (s.stretchDuration * 1000);
+    }
     expandedOverrides = new Set(s.expanded || []);
   }catch(e){}
 }
@@ -1166,7 +1225,8 @@ function startLog(templateId){
   sessionStartTime = Date.now();
   sessionPausedAt = null;
   stretchStartTime = null;
-  stretchDuration = null;
+  stretchPausedAt = null;
+  stretchDone = false;
   expandedOverrides = new Set();
   persistActiveSession();
   nav({name:"log"});
@@ -1202,7 +1262,8 @@ function beginPlan(templateId){
   sessionStartTime = Date.now();
   sessionPausedAt = null;
   stretchStartTime = null;
-  stretchDuration = null;
+  stretchPausedAt = null;
+  stretchDone = false;
   expandedOverrides = new Set();
   persistActiveSession();
   closeModal();
@@ -1217,7 +1278,8 @@ function continuePlanned(workoutId){
   sessionStartTime = Date.now();
   sessionPausedAt = null;
   stretchStartTime = null;
-  stretchDuration = null;
+  stretchPausedAt = null;
+  stretchDone = false;
   expandedOverrides = new Set();
   const withDone = s => ({...s, done: s.done !== undefined ? s.done : (s.reps !== null && s.reps !== undefined)});
   sessionEntries = w.entries.map(e => ({
@@ -1374,49 +1436,84 @@ function viewLog(){
 
 function setSessionDate(val){ sessionDate = val; persistActiveSession(); render(); }
 
-/* ============ STRETCH TIMER ============ */
+/* ============ STRETCH TIMER ============
+   Model: stretchStartTime shifts forward on resume (same trick as the
+   workout pause), stretchPausedAt freezes the display while paused or
+   marked done, and stretchDone just tracks the checkbox — checking it
+   pauses+locks, unchecking resumes right where it left off. */
+function stretchElapsedSeconds(){
+  if(stretchStartTime === null) return 0;
+  const end = stretchPausedAt !== null ? stretchPausedAt : Date.now();
+  return Math.max(0, Math.floor((end - stretchStartTime)/1000));
+}
 function renderStretchRow(){
-  if(stretchDuration !== null){
-    return `
-      <div class="stretch-row">
-        <div class="stretch-label">Stretched</div>
-        <div class="stretch-timer">${fmtDuration(stretchDuration)}</div>
-        <label class="set-check" aria-label="Stretch complete">
-          <input type="checkbox" checked disabled>
-          <span class="set-check-box"></span>
-        </label>
-      </div>`;
+  if(stretchStartTime === null){
+    return `<div class="stretch-row stretch-add" onclick="startStretch()">+ Add Stretch</div>`;
   }
-  if(stretchStartTime !== null){
-    return `
-      <div class="stretch-row">
-        <div class="stretch-label">Stretching</div>
-        <div class="stretch-timer" id="stretchTimer">0:00</div>
-        <label class="set-check" aria-label="Mark stretch complete">
-          <input type="checkbox" onchange="finishStretch()">
-          <span class="set-check-box"></span>
-        </label>
-      </div>`;
-  }
-  return `<div class="stretch-row stretch-add" onclick="startStretch()">+ Add Stretch</div>`;
+  const paused = stretchPausedAt !== null;
+  const label = stretchDone ? "Stretched" : (paused ? "Paused" : "Stretching");
+  return `
+    <div class="stretch-row">
+      <div class="stretch-label">${label}</div>
+      <div class="stretch-timer" id="stretchTimer" onclick="openStretchTimerModal()">${fmtDuration(stretchElapsedSeconds())}</div>
+      ${!stretchDone ? `
+        <button class="stretch-pause-btn" onclick="toggleStretchPause()" aria-label="${paused ? "Resume stretch" : "Pause stretch"}">${paused ? ICONS.play : ICONS.pause}</button>
+      ` : ``}
+      <label class="set-check" aria-label="${stretchDone ? "Unmark stretch complete" : "Mark stretch complete"}">
+        <input type="checkbox" ${stretchDone ? "checked" : ""} onchange="toggleStretchDone(this.checked)">
+        <span class="set-check-box"></span>
+      </label>
+    </div>`;
 }
 function startStretch(){
   stretchStartTime = Date.now();
-  stretchDuration = null;
+  stretchPausedAt = null;
+  stretchDone = false;
   persistActiveSession();
   render();
+  openStretchTimerModal();
 }
-function finishStretch(){
-  if(stretchStartTime === null) return;
-  stretchDuration = Math.floor((Date.now() - stretchStartTime)/1000);
-  stopStretchTimer();
+function toggleStretchPause(){
+  if(stretchStartTime === null || stretchDone) return;
+  if(stretchPausedAt !== null){
+    stretchStartTime += (Date.now() - stretchPausedAt);
+    stretchPausedAt = null;
+    startStretchTimer();
+  }else{
+    stretchPausedAt = Date.now();
+    stopStretchTimer();
+  }
   persistActiveSession();
   render();
+  refreshStretchModal();
+}
+function toggleStretchDone(checked){
+  if(stretchStartTime === null) return;
+  if(checked){
+    if(stretchPausedAt === null){
+      stretchPausedAt = Date.now();
+      stopStretchTimer();
+    }
+    stretchDone = true;
+  }else{
+    stretchDone = false;
+    if(stretchPausedAt !== null){
+      stretchStartTime += (Date.now() - stretchPausedAt);
+      stretchPausedAt = null;
+      startStretchTimer();
+    }
+  }
+  persistActiveSession();
+  render();
+  refreshStretchModal();
 }
 function updateStretchDisplay(){
-  if(stretchStartTime === null) return;
-  const el = document.getElementById("stretchTimer");
-  if(el) el.textContent = fmtDuration(Math.floor((Date.now() - stretchStartTime)/1000));
+  if(stretchStartTime === null || stretchPausedAt !== null) return;
+  const txt = fmtDuration(stretchElapsedSeconds());
+  const el1 = document.getElementById("stretchTimer");
+  if(el1) el1.textContent = txt;
+  const el2 = document.getElementById("stretchTimerBig");
+  if(el2) el2.textContent = txt;
 }
 function startStretchTimer(){
   stopStretchTimer();
@@ -1425,6 +1522,50 @@ function startStretchTimer(){
 }
 function stopStretchTimer(){
   if(stretchTimerInterval){ clearInterval(stretchTimerInterval); stretchTimerInterval = null; }
+}
+
+/* ---- Large stretch timer modal (bigger display + pulsing ring) ---- */
+function renderStretchModalSheet(){
+  const paused = stretchPausedAt !== null;
+  const pulsing = !paused && !stretchDone;
+  return `
+    <div class="sheet stretch-modal-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Stretch Timer</div>
+      <div class="stretch-big-wrap">
+        <div class="stretch-pulse-ring ${pulsing ? "" : "is-paused"}"></div>
+        <div class="stretch-big-timer" id="stretchTimerBig">${fmtDuration(stretchElapsedSeconds())}</div>
+      </div>
+      <div class="stretch-modal-controls">
+        ${!stretchDone ? `
+          <button class="stretch-big-pause-btn" onclick="toggleStretchPause()" aria-label="${paused ? "Resume stretch" : "Pause stretch"}">${paused ? ICONS.play : ICONS.pause}</button>
+        ` : ``}
+        <div class="stretch-modal-check-row">
+          <span class="stretch-modal-check-label">${stretchDone ? "Marked complete — tap to resume" : "Mark Complete"}</span>
+          <label class="set-check" aria-label="${stretchDone ? "Unmark stretch complete" : "Mark stretch complete"}">
+            <input type="checkbox" ${stretchDone ? "checked" : ""} onchange="toggleStretchDone(this.checked)">
+            <span class="set-check-box"></span>
+          </label>
+        </div>
+      </div>
+      <button class="stretch-modal-close-btn" onclick="closeModal()">Close</button>
+    </div>
+  `;
+}
+function openStretchTimerModal(){
+  if(stretchStartTime === null) return;
+  const modal = document.getElementById("modal-root");
+  modal.innerHTML = `
+    <div class="sheet-backdrop" onclick="if(event.target===this) closeModal()">
+      ${renderStretchModalSheet()}
+    </div>
+  `;
+  pushModalState();
+}
+function refreshStretchModal(){
+  const wrap = document.querySelector("#modal-root .stretch-modal-sheet");
+  if(!wrap) return;
+  wrap.outerHTML = renderStretchModalSheet();
 }
 
 /* ============ PAUSE WORKOUT ============
@@ -1678,7 +1819,8 @@ function saveSession(){
   sessionStartTime = null;
   sessionPausedAt = null;
   stretchStartTime = null;
-  stretchDuration = null;
+  stretchPausedAt = null;
+  stretchDone = false;
   expandedOverrides = new Set();
   stopSessionTimer();
   stopStretchTimer();
@@ -1704,7 +1846,8 @@ function discardWorkout(){
     sessionStartTime = null;
     sessionPausedAt = null;
     stretchStartTime = null;
-    stretchDuration = null;
+    stretchPausedAt = null;
+    stretchDone = false;
     expandedOverrides = new Set();
     stopSessionTimer();
     stopStretchTimer();
@@ -2268,7 +2411,7 @@ function afterRender(){
   }else{
     stopSessionTimer();
   }
-  if(stretchStartTime !== null && stretchDuration === null && !isFuturePlan()){
+  if(stretchStartTime !== null && stretchPausedAt === null && !stretchDone && !isFuturePlan()){
     startStretchTimer();
   }else{
     stopStretchTimer();
