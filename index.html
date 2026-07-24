@@ -280,7 +280,7 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
 .stretch-row{
   display:flex; align-items:center; justify-content:space-between; gap:10px;
   margin:0 20px 16px; padding:12px 16px; background:var(--bg-card); border:1px solid var(--border);
-  border-radius:var(--radius-md);
+  border-radius:var(--radius-md); cursor:pointer;
 }
 .stretch-row.stretch-add{
   background:none; border:1.5px dashed var(--border); justify-content:center;
@@ -288,64 +288,104 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
 }
 .stretch-row.stretch-add:active{background:var(--accent-soft);}
 .stretch-label{font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:1.5px; font-weight:700;}
-.stretch-timer{font-family:var(--font-mono); font-size:14px; color:var(--accent-hi); font-weight:700; flex:1; text-align:right; margin-right:4px; cursor:pointer;}
-.stretch-pause-btn{
-  width:30px; height:30px; flex-shrink:0; border-radius:50%; padding:0;
-  background:var(--bg-card-2); border:1px solid var(--border);
-  display:flex; align-items:center; justify-content:center;
-  color:var(--accent-hi); cursor:pointer;
-}
-.stretch-pause-btn svg{width:13px; height:13px;}
-.stretch-pause-btn:active{background:var(--accent-soft);}
+.stretch-timer{font-family:var(--font-mono); font-size:14px; color:var(--accent-hi); font-weight:700; flex:1; text-align:right; margin-right:4px;}
+.stretch-done-check{color:var(--green); flex-shrink:0; transform:rotate(180deg); display:flex;}
+.stretch-done-check svg{width:16px; height:16px;}
 
-/* Large stretch timer modal */
-.stretch-modal-sheet{ text-align:center; }
-.stretch-big-wrap{
+/* ---- Full-screen-style stretch timer sheet ---- */
+.timer-sheet{ text-align:center; padding-top:6px; }
+.timer-topbar{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:18px;
+}
+.timer-topbar-close{
+  width:30px; height:30px; flex-shrink:0; border-radius:50%; padding:0;
+  background:none; border:none; color:var(--accent-hi); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+.timer-topbar-close svg{width:18px; height:18px;}
+.timer-topbar-title{
+  font-family:var(--font-display); font-weight:800; font-size:16px;
+  text-transform:uppercase; letter-spacing:.5px;
+}
+.timer-topbar-spacer{width:30px; flex-shrink:0;}
+.timer-ring-wrap{
   position:relative; display:flex; align-items:center; justify-content:center;
-  height:210px; margin:6px 0 20px;
+  height:190px; margin:6px 0 22px;
 }
-.stretch-pulse-ring{
-  position:absolute; width:160px; height:160px; border-radius:50%;
-  border:2px solid var(--accent);
-  animation:stretchPulse 4.2s ease-in-out infinite;
+.timer-ring{
+  position:absolute; width:150px; height:150px; border-radius:50%;
+  border:3px solid var(--accent);
 }
-.stretch-pulse-ring.is-paused{ animation-play-state:paused; opacity:.35; border-color:var(--border); box-shadow:none; }
-@keyframes stretchPulse{
-  0%{ border-color:var(--accent); box-shadow:0 0 0 0 rgba(201,162,39,0.16); }
-  50%{ border-color:var(--accent-hi); box-shadow:0 0 26px 8px rgba(228,188,62,0.32); }
-  100%{ border-color:var(--accent); box-shadow:0 0 0 0 rgba(201,162,39,0.16); }
-}
-.stretch-big-timer{
+.timer-ring-time{
   position:relative; z-index:1;
-  font-family:var(--font-mono); font-weight:800; font-size:42px; color:var(--accent-hi);
+  font-family:var(--font-mono); font-weight:800; font-size:36px; color:var(--text);
   letter-spacing:.5px;
 }
-.stretch-modal-controls{
-  display:flex; flex-direction:column; align-items:center; gap:16px; margin-bottom:20px;
+.timer-actions{ display:flex; justify-content:center; gap:10px; margin-bottom:22px; }
+.timer-actions.two-up .timer-action-btn{ flex:1; max-width:150px; }
+.timer-action-btn{
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  padding:14px 26px; border-radius:var(--radius-md); border:none;
+  background:var(--accent-soft); color:var(--accent-hi);
+  font-weight:800; font-size:14px; letter-spacing:.5px; text-transform:uppercase; cursor:pointer;
 }
-.stretch-big-pause-btn{
-  width:58px; height:58px; border-radius:50%; flex-shrink:0; padding:0;
-  background:var(--bg-card); border:1px solid var(--border);
-  display:flex; align-items:center; justify-content:center;
-  color:var(--accent-hi); cursor:pointer;
+.timer-action-btn svg{width:16px; height:16px;}
+.timer-action-btn:active{background:var(--accent);color:#1B1500;}
+.timer-action-btn-outline{ background:none; border:1.5px solid var(--border); color:var(--text-dim); }
+.timer-action-btn-outline:active{background:var(--bg-card-2); color:var(--text);}
+.timer-mode-tabs{
+  display:flex; background:var(--bg-card); border:1px solid var(--border);
+  border-radius:var(--radius-md); overflow:hidden;
 }
-.stretch-big-pause-btn svg{width:23px; height:23px;}
-.stretch-big-pause-btn:active{background:var(--accent-soft);}
-.stretch-modal-check-row{ display:flex; align-items:center; justify-content:center; gap:12px; }
-.stretch-modal-check-label{ font-size:13.5px; color:var(--text-dim); font-weight:600; }
-.stretch-modal-close-btn{
-  display:block; width:100%; padding:15px; border-radius:var(--radius-md);
-  background:var(--bg-card-2); border:1px solid var(--border); color:var(--text);
+.timer-mode-tab{
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;
+  padding:12px 4px; background:none; border:none; border-right:1px solid var(--border);
+  color:var(--text-faint); font-size:11.5px; font-weight:700; cursor:pointer;
+}
+.timer-mode-tab:last-child{border-right:none;}
+.timer-mode-tab.active{ background:var(--accent-soft); color:var(--accent-hi); }
+.timer-mode-icon{display:flex;}
+.timer-mode-icon svg{width:19px; height:19px;}
+
+/* ---- Stop confirmation (Save/Edit Time Record) ---- */
+.stop-total-time{ padding:8px 0 20px; }
+.stop-total-time .n{
+  font-family:var(--font-mono); font-weight:800; font-size:34px; color:var(--text);
+}
+.stop-total-time .label{ font-size:12.5px; color:var(--text-faint); margin-top:2px; }
+.stop-option-row{
+  display:flex; align-items:center; gap:14px; width:100%;
+  padding:15px 4px; background:none; border:none; border-top:1px solid var(--border-soft);
+  color:var(--text); font-size:15px; font-weight:600; text-align:left; cursor:pointer;
+}
+.stop-option-icon{display:flex; color:var(--accent-hi); flex-shrink:0;}
+.stop-option-icon svg{width:19px; height:19px;}
+.stop-option-row:active{background:var(--bg-card-2);}
+.stop-close-btn{
+  display:block; width:100%; margin-top:8px; padding:15px; border-radius:var(--radius-md);
+  background:none; border:1px solid var(--border); color:var(--text-dim);
   font-weight:700; font-size:14.5px; cursor:pointer;
 }
-.stretch-modal-close-btn:active{background:var(--accent-soft);}
+.stop-close-btn:active{background:var(--bg-card-2);}
+
+/* ---- Edit Time (hours/minutes/seconds) ---- */
+.hms-row{ display:flex; gap:10px; margin:6px 0 20px; }
+.hms-field{ flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; }
+.hms-input{
+  width:100%; background:var(--bg-card-2); border:1px solid var(--border);
+  border-radius:10px; color:var(--text); text-align:center;
+  font-family:var(--font-mono); font-size:20px; font-weight:800; padding:12px 2px;
+}
+.hms-input:focus{outline:none; border-color:var(--accent);}
+.hms-field label{font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:1px; font-weight:700;}
 
 /* Exercise entry cards in Log view */
 .exercise-card{
-  background:var(--bg-card); border:1px solid var(--border);
-  border-radius:var(--radius-lg); padding:16px; margin:0 20px 14px;
-  box-shadow:0 1px 2px rgba(0,0,0,0.18), 0 6px 16px rgba(0,0,0,0.14);
+  margin:0 20px; padding:18px 0 20px;
+  border-bottom:1px solid var(--border);
 }
+.exercise-card:last-of-type{ border-bottom:none; }
 .exercise-card .ex-head{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
 .exercise-card .ex-name{font-weight:800; font-size:16.5px;}
 .exercise-card .ex-hint{font-size:11.5px; color:var(--text-faint); margin-top:3px;}
@@ -395,19 +435,28 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
 }
 .date-field-row input[type=date]::-webkit-calendar-picker-indicator{ filter:invert(70%) sepia(60%) saturate(400%) hue-rotate(0deg); opacity:.85;}
 .plan-hint{margin:10px 4px 0; font-size:11.5px; color:var(--text-faint); text-align:center; line-height:1.4;}
-.sets-subhead{
-  font-size:10.5px; color:var(--text-faint); letter-spacing:1.5px; text-transform:uppercase;
-  font-weight:700; margin:16px 2px 8px;
+.set-table{ margin-bottom:4px; }
+.set-table-head{
+  display:grid; grid-template-columns:38px 1fr 1fr 34px 22px;
+  gap:8px; padding:0 2px 10px; align-items:center;
 }
-.set-line{
-  display:flex; align-items:center; gap:6px; margin-bottom:8px;
+.set-table-head span{
+  font-size:9.5px; color:var(--text-faint); letter-spacing:1.2px; text-transform:uppercase; font-weight:700; text-align:center;
 }
-.set-line-label{
-  width:40px; flex-shrink:0; font-size:10.5px; color:var(--text-faint);
-  font-family:var(--font-mono); font-weight:700; white-space:nowrap;
+.set-table-head span:first-child{ text-align:left; }
+.set-row{
+  display:grid; grid-template-columns:38px 1fr 1fr 34px 22px;
+  gap:8px; align-items:center; margin-bottom:10px;
 }
+.set-badge{
+  width:32px; height:32px; border-radius:50%; flex-shrink:0;
+  background:var(--bg-card-2); border:1px solid var(--border);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-mono); font-weight:800; font-size:13.5px; color:var(--text);
+}
+.set-badge.warmup{ color:var(--text-dim); }
 .mini-weight-input{
-  flex:1; min-width:0; background:var(--bg-card-2); border:1px solid var(--border);
+  width:100%; min-width:0; background:var(--bg-card-2); border:1px solid var(--border);
   border-radius:8px; color:var(--text); text-align:center;
   font-family:var(--font-mono); font-size:15px; font-weight:700; padding:9px 2px;
   -moz-appearance:textfield;
@@ -416,7 +465,7 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
 .mini-weight-input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
 .mini-weight-input:focus{outline:none; border-color:var(--accent);}
 .mini-reps-input{
-  flex:1; min-width:0; background:var(--bg-card-2); border:1px solid var(--border);
+  width:100%; min-width:0; background:var(--bg-card-2); border:1px solid var(--border);
   border-radius:8px; color:var(--text); text-align:center;
   font-family:var(--font-mono); font-size:15px; font-weight:700; padding:9px 2px;
 }
@@ -517,6 +566,7 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
   background:var(--bg-card); color:var(--text); font-weight:700; font-size:14.5px; cursor:pointer;
 }
 .confirm-btn-danger{background:var(--red); border-color:var(--red); color:#2B0B0C;}
+.confirm-btn-accent{background:var(--accent); border-color:var(--accent); color:#1B1500;}
 .confirm-btn:active{transform:scale(0.97);}
 .pick-row{
   display:flex; align-items:center; justify-content:space-between;
@@ -1129,8 +1179,13 @@ let sessionTimerInterval = null;
 let sessionPausedAt = null; // Date.now() when the workout was paused; null while running
 
 let stretchStartTime = null; // Date.now() when the current running segment started; null if never started
-let stretchPausedAt = null;  // Date.now() when paused (or locked done); null while actively ticking
-let stretchDone = false;     // whether the checkbox is checked off as complete
+let stretchPausedAt = null;  // Date.now() when paused/stopped; null while actively ticking
+// idle: never started · running: ticking · paused: frozen mid-session ·
+// stopped: Stop was tapped, showing the Save/Edit confirmation · done: finalized
+let stretchPhase = "idle";
+let stretchStopView = "confirm"; // while stopped: 'confirm' (Save/Edit choice) or 'edit' (H/M/S picker)
+let stretchMode = "stopwatch"; // 'stopwatch' | 'countdown' | 'intervals' — only stopwatch is functional today
+let stretchEditH = 0, stretchEditM = 0, stretchEditS = 0; // scratch values while editing the recorded time
 let stretchTimerInterval = null;
 
 // Exercise cards whose all-sets-complete state has been manually expanded
@@ -1149,7 +1204,7 @@ function persistActiveSession(){
       type: sessionType, date: sessionDate, editingWorkoutId,
       startTime: sessionStartTime, entries: sessionEntries,
       pausedAt: sessionPausedAt,
-      stretchStartTime, stretchPausedAt, stretchDone,
+      stretchStartTime, stretchPausedAt, stretchPhase, stretchMode,
       expanded: Array.from(expandedOverrides)
     }));
   }catch(e){}
@@ -1171,14 +1226,23 @@ function restoreActiveSessionIfAny(){
     sessionPausedAt = s.pausedAt ?? null;
     stretchStartTime = s.stretchStartTime ?? null;
     stretchPausedAt = s.stretchPausedAt ?? null;
-    stretchDone = s.stretchDone ?? false;
-    if(s.stretchDuration !== undefined && s.stretchDuration !== null && !stretchDone){
-      // Legacy shape (pre-pause-button): a completed stretch stored only a
-      // final duration. Convert it into the new frozen "done" state.
-      stretchDone = true;
+    stretchMode = s.stretchMode || "stopwatch";
+    if(s.stretchPhase){
+      stretchPhase = s.stretchPhase;
+    }else if(s.stretchDuration !== undefined && s.stretchDuration !== null && !s.stretchDone){
+      // Legacy shape (pre-Start/Stop redesign): a completed stretch stored
+      // only a final duration. Convert it into the finalized "done" phase.
+      stretchPhase = "done";
       stretchPausedAt = Date.now();
       stretchStartTime = Date.now() - (s.stretchDuration * 1000);
+    }else if(s.stretchDone !== undefined){
+      // Legacy shape (pre-Start/Stop redesign, post-pause-button): map the
+      // old boolean straight onto the new phase model.
+      stretchPhase = s.stretchDone ? "done" : (stretchStartTime === null ? "idle" : (stretchPausedAt !== null ? "paused" : "running"));
+    }else{
+      stretchPhase = stretchStartTime === null ? "idle" : "running";
     }
+    stretchStopView = "confirm";
     expandedOverrides = new Set(s.expanded || []);
   }catch(e){}
 }
@@ -1266,7 +1330,11 @@ const ICONS = {
   edit:`<svg viewBox="0 0 24 24" fill="none"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   pause:`<svg viewBox="0 0 24 24" fill="none"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>`,
   play:`<svg viewBox="0 0 24 24" fill="none"><path d="M7.5 4.8v14.4a1 1 0 0 0 1.53.85l11.2-7.2a1 1 0 0 0 0-1.7L9.03 3.95A1 1 0 0 0 7.5 4.8z" fill="currentColor"/></svg>`,
-  chevronDown:`<svg viewBox="0 0 24 24" fill="none"><path d="M5 8.5l7 7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+  chevronDown:`<svg viewBox="0 0 24 24" fill="none"><path d="M5 8.5l7 7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  stop:`<svg viewBox="0 0 24 24" fill="none"><rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor"/></svg>`,
+  stopwatch:`<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="13" r="8" stroke="currentColor" stroke-width="1.8"/><path d="M12 9v4l2.6 2.6M10 2h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+  hourglass:`<svg viewBox="0 0 24 24" fill="none"><path d="M6 3h12M6 21h12M7 3c0 4.5 3 6 5 8-2 2-5 3.5-5 8M17 3c0 4.5-3 6-5 8 2 2 5 3.5 5 8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  intervals:`<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 12V4.5a7.5 7.5 0 0 1 0 15 7.5 7.5 0 0 1-6.5-11.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg>`
 };
 
 /* ============ HOME ============ */
@@ -1402,7 +1470,8 @@ function startLog(templateId){
   sessionPausedAt = null;
   stretchStartTime = null;
   stretchPausedAt = null;
-  stretchDone = false;
+  stretchPhase = "idle";
+  stretchStopView = "confirm";
   expandedOverrides = new Set();
   persistActiveSession();
   nav({name:"log"});
@@ -1439,7 +1508,8 @@ function beginPlan(templateId){
   sessionPausedAt = null;
   stretchStartTime = null;
   stretchPausedAt = null;
-  stretchDone = false;
+  stretchPhase = "idle";
+  stretchStopView = "confirm";
   expandedOverrides = new Set();
   persistActiveSession();
   closeModal();
@@ -1455,7 +1525,8 @@ function continuePlanned(workoutId){
   sessionPausedAt = null;
   stretchStartTime = null;
   stretchPausedAt = null;
-  stretchDone = false;
+  stretchPhase = "idle";
+  stretchStopView = "confirm";
   expandedOverrides = new Set();
   const withDone = s => ({...s, done: s.done !== undefined ? s.done : (s.reps !== null && s.reps !== undefined)});
   sessionEntries = w.entries.map(e => ({
@@ -1468,10 +1539,10 @@ function continuePlanned(workoutId){
 }
 
 /* ============ LOG / PLAN BUILDER ============ */
-function renderSetLine(idx, group, si, set, label, removable){
+function renderSetRow(idx, group, si, set, badgeLabel, isWarmup){
   return `
-    <div class="set-line">
-      <div class="set-line-label">${label}</div>
+    <div class="set-row">
+      <div class="set-badge ${isWarmup ? "warmup" : ""}">${badgeLabel}</div>
       <input type="text" inputmode="none" autocomplete="off" class="mini-weight-input" id="weight-input-${group}-${idx}-${si}" placeholder="weight"
         value="${set.weight === 0 ? "" : set.weight}"
         onfocus="focusNumField(${idx}, '${group}', ${si}, 'weight', this)"
@@ -1486,9 +1557,9 @@ function renderSetLine(idx, group, si, set, label, removable){
           onchange="toggleSetDone(${idx}, '${group}', ${si}, this.checked)">
         <span class="set-check-box"></span>
       </label>
-      ${removable
+      ${isWarmup
         ? `<button class="set-line-remove" onclick="removeWarmup(${idx}, ${si})" aria-label="Remove warm-up set">✕</button>`
-        : ``}
+        : `<div></div>`}
     </div>
   `;
 }
@@ -1542,8 +1613,8 @@ function viewLog(){
       statusHtml = `<div class="status-preview status-${status}" id="status-${idx}"><span class="sw"></span>${STATUS_LABEL[status].text}</div>`;
     }
 
-    const warmupLines = entry.warmups.map((s,si) => renderSetLine(idx, "warmups", si, s, `W${si+1}`, true)).join("");
-    const setLines = entry.sets.map((s,si) => renderSetLine(idx, "sets", si, s, `Set ${si+1}`, false)).join("");
+    const warmupRows = entry.warmups.map((s,si) => renderSetRow(idx, "warmups", si, s, "W", true)).join("");
+    const setRows = entry.sets.map((s,si) => renderSetRow(idx, "sets", si, s, si+1, false)).join("");
 
     cards += `
       <div class="exercise-card">
@@ -1564,11 +1635,11 @@ function viewLog(){
           </div>
         </div>
 
-        ${entry.warmups.length ? `<div class="sets-subhead">Warm-up</div>${warmupLines}` : ""}
+        <div class="set-table">
+          <div class="set-table-head"><span>Set</span><span>Weight</span><span>Reps</span><span>Done</span><span></span></div>
+          ${warmupRows}${setRows}
+        </div>
         <button class="add-warmup-btn" onclick="addWarmup(${idx})">+ Add Warm-up Set</button>
-
-        <div class="sets-subhead">Working Sets</div>
-        ${setLines}
 
         ${statusHtml}
       </div>
@@ -1616,78 +1687,122 @@ function viewLog(){
 function setSessionDate(val){ sessionDate = val; persistActiveSession(); render(); }
 
 /* ============ STRETCH TIMER ============
-   Model: stretchStartTime shifts forward on resume (same trick as the
-   workout pause), stretchPausedAt freezes the display while paused or
-   marked done, and stretchDone just tracks the checkbox — checking it
-   pauses+locks, unchecking resumes right where it left off. */
+   Phase model: idle (never started) -> running -> paused -> stopped
+   (showing the Save/Edit choice) -> done (finalized). stretchStartTime
+   shifts forward on resume (same trick as the workout pause); stretchPausedAt
+   freezes the displayed elapsed time whenever ticking has stopped, whatever
+   the reason (paused, stopped, or done). Only the "stopwatch" mode is wired
+   up with real logic today — Countdown and Intervals are placeholder tabs. */
 function stretchElapsedSeconds(){
   if(stretchStartTime === null) return 0;
   const end = stretchPausedAt !== null ? stretchPausedAt : Date.now();
   return Math.max(0, Math.floor((end - stretchStartTime)/1000));
 }
 function renderStretchRow(){
-  if(stretchStartTime === null){
+  if(stretchPhase === "idle"){
     return `<div class="stretch-row stretch-add" onclick="startStretch()">+ Add Stretch</div>`;
   }
-  const paused = stretchPausedAt !== null;
-  const label = stretchDone ? "Stretched" : (paused ? "Paused" : "Stretching");
+  const label = stretchPhase === "done" ? "Stretched" : (stretchPhase === "paused" || stretchPhase === "stopped" ? "Paused" : "Stretching");
   return `
-    <div class="stretch-row">
+    <div class="stretch-row" onclick="openStretchTimerModal()">
       <div class="stretch-label">${label}</div>
-      <div class="stretch-timer" id="stretchTimer" onclick="openStretchTimerModal()">${fmtDuration(stretchElapsedSeconds())}</div>
-      ${!stretchDone ? `
-        <button class="stretch-pause-btn" onclick="toggleStretchPause()" aria-label="${paused ? "Resume stretch" : "Pause stretch"}">${paused ? ICONS.play : ICONS.pause}</button>
-      ` : ``}
-      <label class="set-check" aria-label="${stretchDone ? "Unmark stretch complete" : "Mark stretch complete"}">
-        <input type="checkbox" ${stretchDone ? "checked" : ""} onchange="toggleStretchDone(this.checked)">
-        <span class="set-check-box"></span>
-      </label>
+      <div class="stretch-timer" id="stretchTimer">${fmtDuration(stretchElapsedSeconds())}</div>
+      ${stretchPhase === "done" ? `<span class="stretch-done-check">${ICONS.chevronDown}</span>` : `<span class="collapsed-chev">${ICONS.chevronDown}</span>`}
     </div>`;
 }
 function startStretch(){
-  stretchStartTime = Date.now();
+  stretchStartTime = null;
   stretchPausedAt = null;
-  stretchDone = false;
+  stretchPhase = "idle";
+  stretchStopView = "confirm";
   persistActiveSession();
   render();
   openStretchTimerModal();
 }
+function beginStretchRun(){
+  if(stretchMode !== "stopwatch"){
+    showToast(`${stretchMode === "countdown" ? "Countdown" : "Intervals"} timers are coming soon`);
+    return;
+  }
+  stretchStartTime = Date.now();
+  stretchPausedAt = null;
+  stretchPhase = "running";
+  persistActiveSession();
+  startStretchTimer();
+  render();
+  refreshStretchSheet();
+}
 function toggleStretchPause(){
-  if(stretchStartTime === null || stretchDone) return;
-  if(stretchPausedAt !== null){
+  if(stretchPhase === "running"){
+    stretchPausedAt = Date.now();
+    stretchPhase = "paused";
+    stopStretchTimer();
+  }else if(stretchPhase === "paused"){
     stretchStartTime += (Date.now() - stretchPausedAt);
     stretchPausedAt = null;
+    stretchPhase = "running";
     startStretchTimer();
   }else{
-    stretchPausedAt = Date.now();
-    stopStretchTimer();
+    return;
   }
   persistActiveSession();
   render();
-  refreshStretchModal();
+  refreshStretchSheet();
 }
-function toggleStretchDone(checked){
-  if(stretchStartTime === null) return;
-  if(checked){
-    if(stretchPausedAt === null){
-      stretchPausedAt = Date.now();
-      stopStretchTimer();
-    }
-    stretchDone = true;
-  }else{
-    stretchDone = false;
-    if(stretchPausedAt !== null){
-      stretchStartTime += (Date.now() - stretchPausedAt);
-      stretchPausedAt = null;
-      startStretchTimer();
-    }
-  }
+function stopStretchRun(){
+  if(stretchPhase !== "running" && stretchPhase !== "paused") return;
+  if(stretchPausedAt === null) stretchPausedAt = Date.now();
+  stretchPhase = "stopped";
+  stretchStopView = "confirm";
+  stopStretchTimer();
   persistActiveSession();
   render();
-  refreshStretchModal();
+  refreshStretchSheet();
+}
+function cancelStretchStop(){
+  // "Close" on the Save/Edit confirmation — undo the Stop and go back to paused.
+  stretchPhase = "paused";
+  stretchStopView = "confirm";
+  persistActiveSession();
+  render();
+  refreshStretchSheet();
+}
+function confirmSaveStretchTime(){
+  stretchPhase = "done";
+  persistActiveSession();
+  render();
+  closeModal();
+  showToast("Stretch saved");
+}
+function openEditStretchTimeModal(){
+  const total = stretchElapsedSeconds();
+  stretchEditH = Math.floor(total/3600);
+  stretchEditM = Math.floor((total%3600)/60);
+  stretchEditS = total%60;
+  stretchStopView = "edit";
+  refreshStretchSheet();
+}
+function backToStretchStopConfirm(){
+  stretchStopView = "confirm";
+  refreshStretchSheet();
+}
+function confirmEditStretchTime(){
+  const total = Math.max(0, stretchEditH*3600 + stretchEditM*60 + stretchEditS);
+  const now = Date.now();
+  stretchStartTime = now - total*1000;
+  stretchPausedAt = now;
+  stretchPhase = "done";
+  persistActiveSession();
+  render();
+  closeModal();
+  showToast("Stretch saved");
+}
+function setStretchMode(mode){
+  stretchMode = mode;
+  refreshStretchSheet();
 }
 function updateStretchDisplay(){
-  if(stretchStartTime === null || stretchPausedAt !== null) return;
+  if(stretchPhase !== "running") return;
   const txt = fmtDuration(stretchElapsedSeconds());
   const el1 = document.getElementById("stretchTimer");
   if(el1) el1.textContent = txt;
@@ -1703,49 +1818,133 @@ function stopStretchTimer(){
   if(stretchTimerInterval){ clearInterval(stretchTimerInterval); stretchTimerInterval = null; }
 }
 
-/* ---- Large stretch timer modal (bigger display + pulsing ring) ---- */
-function renderStretchModalSheet(){
-  const paused = stretchPausedAt !== null;
-  const pulsing = !paused && !stretchDone;
+/* ---- Full timer sheet: main ring view, the stop confirmation, and the edit-time view ---- */
+function renderStretchModeTabs(){
+  const modes = [
+    {id:"stopwatch", label:"Stopwatch", icon:ICONS.stopwatch},
+    {id:"countdown", label:"Countdown", icon:ICONS.hourglass},
+    {id:"intervals", label:"Intervals", icon:ICONS.intervals}
+  ];
   return `
-    <div class="sheet stretch-modal-sheet">
-      <div class="sheet-handle"></div>
-      <div class="sheet-title">Stretch Timer</div>
-      <div class="stretch-big-wrap">
-        <div class="stretch-pulse-ring ${pulsing ? "" : "is-paused"}"></div>
-        <div class="stretch-big-timer" id="stretchTimerBig">${fmtDuration(stretchElapsedSeconds())}</div>
-      </div>
-      <div class="stretch-modal-controls">
-        ${!stretchDone ? `
-          <button class="stretch-big-pause-btn" onclick="toggleStretchPause()" aria-label="${paused ? "Resume stretch" : "Pause stretch"}">${paused ? ICONS.play : ICONS.pause}</button>
-        ` : ``}
-        <div class="stretch-modal-check-row">
-          <span class="stretch-modal-check-label">${stretchDone ? "Marked complete — tap to resume" : "Mark Complete"}</span>
-          <label class="set-check" aria-label="${stretchDone ? "Unmark stretch complete" : "Mark stretch complete"}">
-            <input type="checkbox" ${stretchDone ? "checked" : ""} onchange="toggleStretchDone(this.checked)">
-            <span class="set-check-box"></span>
-          </label>
-        </div>
-      </div>
-      <button class="stretch-modal-close-btn" onclick="closeModal()">Close</button>
+    <div class="timer-mode-tabs">
+      ${modes.map(m => `
+        <button class="timer-mode-tab ${stretchMode === m.id ? "active" : ""}" onclick="setStretchMode('${m.id}')">
+          <span class="timer-mode-icon">${m.icon}</span>
+          ${m.label}
+        </button>
+      `).join("")}
     </div>
   `;
 }
+function renderStretchMainSheet(){
+  const running = stretchPhase === "running";
+  const paused = stretchPhase === "paused";
+  let actionsHtml = "";
+  if(paused){
+    actionsHtml = `
+      <div class="timer-actions two-up">
+        <button class="timer-action-btn" onclick="toggleStretchPause()">${ICONS.play} Resume</button>
+        <button class="timer-action-btn timer-action-btn-outline" onclick="stopStretchRun()">${ICONS.stop} Stop</button>
+      </div>`;
+  }else if(running){
+    actionsHtml = `
+      <div class="timer-actions">
+        <button class="timer-action-btn" onclick="toggleStretchPause()">${ICONS.pause} Pause</button>
+      </div>`;
+  }else{
+    actionsHtml = `
+      <div class="timer-actions">
+        <button class="timer-action-btn" onclick="beginStretchRun()">${ICONS.play} Start</button>
+      </div>`;
+  }
+  return `
+    <div class="sheet timer-sheet">
+      <div class="sheet-handle"></div>
+      <div class="timer-topbar">
+        <button class="timer-topbar-close" onclick="closeModal()" aria-label="Close">${ICONS.back}</button>
+        <div class="timer-topbar-title">Stretch Timer</div>
+        <div class="timer-topbar-spacer"></div>
+      </div>
+      <div class="timer-ring-wrap">
+        <div class="timer-ring"></div>
+        <div class="timer-ring-time" id="stretchTimerBig">${fmtDuration(stretchElapsedSeconds())}</div>
+      </div>
+      ${actionsHtml}
+      ${renderStretchModeTabs()}
+    </div>
+  `;
+}
+function renderStretchStopConfirmSheet(){
+  return `
+    <div class="sheet timer-sheet">
+      <div class="sheet-handle"></div>
+      <div class="stop-total-time">
+        <div class="n">${fmtDuration(stretchElapsedSeconds())}</div>
+        <div class="label">Total time</div>
+      </div>
+      <button class="stop-option-row" onclick="confirmSaveStretchTime()">
+        <span class="stop-option-icon">${ICONS.stopwatch}</span> Save Time Record
+      </button>
+      <button class="stop-option-row" onclick="openEditStretchTimeModal()">
+        <span class="stop-option-icon">${ICONS.edit}</span> Edit Time Record
+      </button>
+      <button class="stop-close-btn" onclick="cancelStretchStop()">Close</button>
+    </div>
+  `;
+}
+function renderStretchEditSheet(){
+  return `
+    <div class="sheet timer-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Edit Time</div>
+      <div class="hms-row">
+        <div class="hms-field">
+          <input type="text" inputmode="none" autocomplete="off" class="hms-input" id="editHoursInput" value="${stretchEditH}"
+            onfocus="focusNumField(0, '', 0, 'stretchH', this)" onblur="blurNumField()"
+            oninput="handleNumFieldTyped(this, 0, '', 0, 'stretchH')">
+          <label>hours</label>
+        </div>
+        <div class="hms-field">
+          <input type="text" inputmode="none" autocomplete="off" class="hms-input" id="editMinutesInput" value="${stretchEditM}"
+            onfocus="focusNumField(0, '', 0, 'stretchM', this)" onblur="blurNumField()"
+            oninput="handleNumFieldTyped(this, 0, '', 0, 'stretchM')">
+          <label>minutes</label>
+        </div>
+        <div class="hms-field">
+          <input type="text" inputmode="none" autocomplete="off" class="hms-input" id="editSecondsInput" value="${stretchEditS}"
+            onfocus="focusNumField(0, '', 0, 'stretchS', this)" onblur="blurNumField()"
+            oninput="handleNumFieldTyped(this, 0, '', 0, 'stretchS')">
+          <label>seconds</label>
+        </div>
+      </div>
+      <div class="confirm-actions">
+        <button class="confirm-btn" onclick="backToStretchStopConfirm()">Close</button>
+        <button class="confirm-btn confirm-btn-accent" onclick="confirmEditStretchTime()">OK</button>
+      </div>
+    </div>
+  `;
+}
+function renderStretchSheet(){
+  if(stretchPhase === "stopped"){
+    return stretchStopView === "edit" ? renderStretchEditSheet() : renderStretchStopConfirmSheet();
+  }
+  return renderStretchMainSheet();
+}
 function openStretchTimerModal(){
-  if(stretchStartTime === null) return;
   const modal = document.getElementById("modal-root");
   modal.innerHTML = `
     <div class="sheet-backdrop" onclick="if(event.target===this) closeModal()">
-      ${renderStretchModalSheet()}
+      ${renderStretchSheet()}
     </div>
   `;
   pushModalState();
 }
-function refreshStretchModal(){
-  const wrap = document.querySelector("#modal-root .stretch-modal-sheet");
+function refreshStretchSheet(){
+  const wrap = document.querySelector("#modal-root .timer-sheet");
   if(!wrap) return;
-  wrap.outerHTML = renderStretchModalSheet();
+  wrap.outerHTML = renderStretchSheet();
 }
+
 
 /* ============ PAUSE WORKOUT ============
    Pausing shifts sessionStartTime forward by however long the pause lasts
@@ -1810,6 +2009,9 @@ let activeNumField = null; // {idx, group, si, kind: 'weight'|'reps'}
 let activeNumSelectAll = false; // true right after focusing — next press replaces the whole value
 
 function numFieldElId(idx, group, si, kind){
+  if(kind === "stretchH") return "editHoursInput";
+  if(kind === "stretchM") return "editMinutesInput";
+  if(kind === "stretchS") return "editSecondsInput";
   return kind === "weight" ? `weight-input-${group}-${idx}-${si}` : `reps-input-${group}-${idx}-${si}`;
 }
 function focusNumField(idx, group, si, kind, el){
@@ -1823,7 +2025,7 @@ function blurNumField(){
   // keep focus on the field) has already run before we consider hiding it.
   setTimeout(()=>{
     if(document.activeElement && document.activeElement.classList &&
-       (document.activeElement.classList.contains("mini-weight-input") || document.activeElement.classList.contains("mini-reps-input"))){
+       (document.activeElement.classList.contains("mini-weight-input") || document.activeElement.classList.contains("mini-reps-input") || document.activeElement.classList.contains("hms-input"))){
       return; // focus moved straight to another numeric field — keep the keypad open
     }
     hideNumKeypad();
@@ -1834,7 +2036,8 @@ function showNumKeypad(kind){
   if(!bar) return;
   bar.classList.add("visible");
   const label = document.getElementById("numKeypadLabel");
-  if(label) label.textContent = kind === "weight" ? "Weight" : "Reps";
+  const labelMap = {weight:"Weight", reps:"Reps", stretchH:"Hours", stretchM:"Minutes", stretchS:"Seconds"};
+  if(label) label.textContent = labelMap[kind] || "";
   const dot = document.getElementById("numKeypadDot");
   if(dot) dot.style.visibility = kind === "weight" ? "visible" : "hidden";
 }
@@ -1842,6 +2045,12 @@ function hideNumKeypad(){
   const bar = document.getElementById("numKeypad");
   if(bar) bar.classList.remove("visible");
   activeNumField = null;
+}
+function setStretchEditField(kind, val){
+  const n = val === "" ? 0 : (parseInt(val, 10) || 0);
+  if(kind === "stretchH") stretchEditH = n;
+  else if(kind === "stretchM") stretchEditM = n;
+  else if(kind === "stretchS") stretchEditS = n;
 }
 function numKeypadPress(ch){
   if(!activeNumField) return;
@@ -1860,10 +2069,8 @@ function numKeypadPress(ch){
   }
   el.value = cur;
   if(kind === "weight") setSetWeight(idx, group, si, cur);
-  else setSetReps(idx, group, si, cur);
-  if(kind === "weight"){
-    // weight edits don't affect status/collapse, so no full render needed
-  }
+  else if(kind === "reps") setSetReps(idx, group, si, cur);
+  else setStretchEditField(kind, cur);
 }
 function handleNumFieldTyped(el, idx, group, si, kind){
   // Defense-in-depth filter for any input that doesn't go through the
@@ -1878,7 +2085,8 @@ function handleNumFieldTyped(el, idx, group, si, kind){
   if(v !== el.value) el.value = v;
   activeNumSelectAll = false;
   if(kind === "weight") setSetWeight(idx, group, si, v);
-  else setSetReps(idx, group, si, v);
+  else if(kind === "reps") setSetReps(idx, group, si, v);
+  else setStretchEditField(kind, v);
 }
 function toggleSetDone(idx, group, si, checked){
   sessionEntries[idx][group][si].done = checked;
@@ -2085,7 +2293,8 @@ function saveSession(){
   sessionPausedAt = null;
   stretchStartTime = null;
   stretchPausedAt = null;
-  stretchDone = false;
+  stretchPhase = "idle";
+  stretchStopView = "confirm";
   expandedOverrides = new Set();
   stopSessionTimer();
   stopStretchTimer();
@@ -2112,7 +2321,8 @@ function discardWorkout(){
     sessionPausedAt = null;
     stretchStartTime = null;
     stretchPausedAt = null;
-    stretchDone = false;
+    stretchPhase = "idle";
+  stretchStopView = "confirm";
     expandedOverrides = new Set();
     stopSessionTimer();
     stopStretchTimer();
@@ -2679,7 +2889,7 @@ function afterRender(){
   }else{
     stopSessionTimer();
   }
-  if(stretchStartTime !== null && stretchPausedAt === null && !stretchDone && !isFuturePlan()){
+  if(stretchPhase === "running" && !isFuturePlan()){
     startStretchTimer();
   }else{
     stopStretchTimer();
