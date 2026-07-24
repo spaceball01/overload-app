@@ -58,6 +58,28 @@ body{
     radial-gradient(circle at 15% 0%, rgba(201,162,39,0.07), transparent 40%),
     var(--bg);
 }
+
+/* ============ MOTION SYSTEM ============
+   Shared press-feedback + entrance animations so taps and screen changes
+   feel eased rather than snapping instantly — the single biggest lever
+   for a native, polished feel on top of an otherwise-static layout. */
+button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
+.add-exercise-btn, .date-field-row, .backup-reminder{
+  transition:transform .16s cubic-bezier(.2,.8,.2,1), background-color .18s ease, border-color .18s ease, box-shadow .18s ease, opacity .18s ease;
+}
+.session-row:active, .plan-row:active, .pick-row:active,
+.exercise-card-collapsed:active, .add-exercise-btn:active{
+  transform:scale(0.985);
+}
+@keyframes pageIn{
+  from{ opacity:0; transform:translateY(10px); }
+  to{ opacity:1; transform:translateY(0); }
+}
+.page-anim{ animation:pageIn .26s cubic-bezier(.16,1,.3,1) both; }
+@keyframes sheetBackdropIn{ from{opacity:0;} to{opacity:1;} }
+@keyframes sheetSlideUp{ from{opacity:0; transform:translateY(28px);} to{opacity:1; transform:translateY(0);} }
+@keyframes toastIn{ from{opacity:0; transform:translate(-50%,-10px) scale(.96);} to{opacity:1; transform:translate(-50%,0) scale(1);} }
+
 .top{
   padding:calc(env(safe-area-inset-top, 0px) + 22px) 20px 14px;
 }
@@ -106,6 +128,7 @@ body{
   padding:18px 16px;
   display:flex; align-items:center; justify-content:center;
   cursor:pointer;
+  box-shadow:0 1px 2px rgba(0,0,0,0.2), 0 6px 16px rgba(0,0,0,0.16);
   transition:transform .15s ease, border-color .15s ease;
 }
 .type-card:active{transform:scale(0.97);}
@@ -132,6 +155,7 @@ body{
   background:var(--bg-card); border:1px solid var(--border);
   border-radius:var(--radius-md); padding:14px 16px; margin-bottom:10px;
   cursor:pointer;
+  box-shadow:0 1px 2px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.14);
 }
 .session-dot{
   width:10px;height:10px;border-radius:50%; flex-shrink:0;
@@ -195,6 +219,7 @@ body{
   display:flex; align-items:center; gap:12px;
   background:var(--bg-card); border:1px solid var(--border); border-left:3px solid var(--orange);
   border-radius:var(--radius-md); padding:14px 16px; margin-bottom:10px; cursor:pointer;
+  box-shadow:0 1px 2px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.14);
 }
 .plan-badge{
   font-size:9.5px; font-weight:800; letter-spacing:.8px; text-transform:uppercase;
@@ -282,13 +307,13 @@ body{
 .stretch-pulse-ring{
   position:absolute; width:160px; height:160px; border-radius:50%;
   border:2px solid var(--accent);
-  animation:stretchPulse 2.6s ease-in-out infinite;
+  animation:stretchPulse 4.2s ease-in-out infinite;
 }
-.stretch-pulse-ring.is-paused{ animation-play-state:paused; opacity:.35; }
+.stretch-pulse-ring.is-paused{ animation-play-state:paused; opacity:.35; border-color:var(--border); box-shadow:none; }
 @keyframes stretchPulse{
-  0%{ transform:scale(0.86); opacity:.5; }
-  50%{ transform:scale(1.08); opacity:1; }
-  100%{ transform:scale(0.86); opacity:.5; }
+  0%{ border-color:var(--accent); box-shadow:0 0 0 0 rgba(201,162,39,0.16); }
+  50%{ border-color:var(--accent-hi); box-shadow:0 0 26px 8px rgba(228,188,62,0.32); }
+  100%{ border-color:var(--accent); box-shadow:0 0 0 0 rgba(201,162,39,0.16); }
 }
 .stretch-big-timer{
   position:relative; z-index:1;
@@ -319,6 +344,7 @@ body{
 .exercise-card{
   background:var(--bg-card); border:1px solid var(--border);
   border-radius:var(--radius-lg); padding:16px; margin:0 20px 14px;
+  box-shadow:0 1px 2px rgba(0,0,0,0.18), 0 6px 16px rgba(0,0,0,0.14);
 }
 .exercise-card .ex-head{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
 .exercise-card .ex-name{font-weight:800; font-size:16.5px;}
@@ -360,6 +386,7 @@ body{
   display:flex; align-items:center; justify-content:space-between;
   margin:0 20px 16px; padding:12px 16px; background:var(--bg-card); border:1px solid var(--border);
   border-radius:var(--radius-md);
+  box-shadow:0 1px 2px rgba(0,0,0,0.16), 0 4px 10px rgba(0,0,0,0.12);
 }
 .date-field-row label{font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:1.5px; font-weight:700;}
 .date-field-row input[type=date]{
@@ -405,15 +432,16 @@ body{
   width:24px; height:24px; border-radius:7px; flex-shrink:0;
   border:1.5px solid var(--border); background:var(--bg-card-2);
   display:flex; align-items:center; justify-content:center;
-  transition:background .15s ease, border-color .15s ease;
+  transition:background .18s ease, border-color .18s ease;
 }
 .set-check-box::after{
   content:""; width:11px; height:6px; opacity:0;
   border-left:2px solid #1B1500; border-bottom:2px solid #1B1500;
-  transform:rotate(-45deg) translate(1px,-1px);
+  transform:rotate(-45deg) translate(1px,-1px) scale(.4);
+  transition:opacity .15s ease, transform .22s cubic-bezier(.34,1.56,.64,1);
 }
 .set-check input:checked + .set-check-box{background:var(--green); border-color:var(--green);}
-.set-check input:checked + .set-check-box::after{opacity:1; border-color:#0C2318;}
+.set-check input:checked + .set-check-box::after{opacity:1; border-color:#0C2318; transform:rotate(-45deg) translate(1px,-1px) scale(1);}
 .set-line-remove{
   width:22px; height:22px; flex-shrink:0; border-radius:50%; padding:0;
   background:none; border:none; color:var(--text-faint); font-size:13px; cursor:pointer;
@@ -454,8 +482,10 @@ body{
   color:#1B1500; border:none; border-radius:var(--radius-lg);
   font-weight:800; font-size:15.5px; letter-spacing:.5px; text-transform:uppercase;
   cursor:pointer; text-align:center;
+  box-shadow:0 6px 20px rgba(201,162,39,0.32), 0 2px 6px rgba(0,0,0,0.25);
 }
-.finish-btn:disabled{opacity:.4;}
+.finish-btn:active:not(:disabled){transform:scale(0.985); box-shadow:0 2px 10px rgba(201,162,39,0.28), 0 1px 3px rgba(0,0,0,0.25);}
+.finish-btn:disabled{opacity:.4; box-shadow:none;}
 .discard-btn{
   display:block; width:100%;
   margin:12px 0 0; padding:17px;
@@ -469,11 +499,14 @@ body{
 .sheet-backdrop{
   position:fixed; inset:0; background:rgba(0,0,0,0.55);
   display:flex; align-items:flex-end; z-index:50;
+  animation:sheetBackdropIn .18s ease both;
 }
 .sheet{
   background:var(--bg-elev); width:100%; max-width:520px; margin:0 auto;
   border-radius:24px 24px 0 0; padding:10px 20px calc(env(safe-area-inset-bottom,0px) + 22px);
   max-height:78vh; overflow-y:auto; border-top:1px solid var(--border);
+  box-shadow:0 -12px 32px rgba(0,0,0,0.4);
+  animation:sheetSlideUp .28s cubic-bezier(.16,1,.3,1) both;
 }
 .sheet-handle{width:36px;height:4px;background:var(--border); border-radius:2px; margin:6px auto 16px;}
 .sheet-title{font-family:var(--font-display); font-weight:800; font-size:20px; text-transform:uppercase; margin-bottom:14px;}
@@ -603,6 +636,36 @@ body{
   padding-bottom:env(safe-area-inset-bottom, 0px);
   z-index:40;
 }
+
+/* Custom numeric keypad — the only way to enter weight/reps, so nothing
+   but digits (and a decimal point for weight) can ever be typed. */
+.num-keypad{
+  position:fixed; left:0; right:0; bottom:0; z-index:70;
+  background:var(--bg-elev); border-top:1px solid var(--border);
+  transform:translateY(100%); transition:transform .18s ease;
+  box-shadow:0 -8px 24px rgba(0,0,0,0.35);
+  padding-bottom:env(safe-area-inset-bottom, 0px);
+}
+.num-keypad.visible{ transform:translateY(0); }
+.num-keypad-inner{ max-width:520px; margin:0 auto; padding:10px 14px 14px; }
+.num-keypad-header{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:2px 4px 10px;
+}
+.num-keypad-header span{
+  font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:1.5px; font-weight:700;
+}
+.num-keypad-done{
+  background:none; border:none; color:var(--accent-hi); font-weight:700; font-size:14px; cursor:pointer; padding:4px 8px;
+}
+.num-keypad-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+.num-keypad-grid button{
+  padding:16px 0; border-radius:12px; border:1px solid var(--border);
+  background:var(--bg-card); color:var(--text); font-size:19px; font-weight:700;
+  font-family:var(--font-mono); cursor:pointer;
+}
+.num-keypad-grid button:active{ background:var(--bg-card-2); border-color:var(--accent); }
+.num-keypad-grid .num-keypad-back{ font-size:16px; color:var(--text-dim); }
 .active-session-bar{
   width:100%; max-width:520px;
   display:flex; align-items:center; gap:12px;
@@ -633,21 +696,88 @@ body{
   font-size:10.5px; letter-spacing:.5px; text-transform:uppercase; font-weight:700;
 }
 .nav-btn.active{color:var(--accent-hi);}
-.nav-btn svg{width:22px; height:22px;}
+.nav-btn:active{transform:scale(0.92);}
+.nav-btn svg{width:22px; height:22px; transition:transform .18s cubic-bezier(.34,1.56,.64,1);}
+.nav-btn.active svg{transform:translateY(-1px);}
 
 .toast{
   position:fixed; top:calc(env(safe-area-inset-top,0px) + 14px); left:50%; transform:translateX(-50%);
   background:var(--bg-card-2); border:1px solid var(--accent); color:var(--text);
   padding:11px 18px; border-radius:30px; font-size:13px; font-weight:600; z-index:80;
   box-shadow:0 8px 24px rgba(0,0,0,0.4);
+  animation:toastIn .25s cubic-bezier(.16,1,.3,1) both;
+  transition:opacity .2s ease, transform .2s ease;
 }
+.toast.toast-out{opacity:0; transform:translate(-50%,-10px) scale(.96);}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <div id="modal-root"></div>
+<div id="numKeypad" class="num-keypad">
+  <div class="num-keypad-inner">
+    <div class="num-keypad-header">
+      <span id="numKeypadLabel">Weight</span>
+      <button type="button" class="num-keypad-done" onmousedown="event.preventDefault()" onclick="if(document.activeElement) document.activeElement.blur(); hideNumKeypad();">Done</button>
+    </div>
+    <div class="num-keypad-grid">
+      <button type="button" onmousedown="event.preventDefault()" onclick="numKeypadPress('1')">1</button>
+      <button type="button" onmousedown="event.preventDefault()" onclick="numKeypadPress('2')">2</button>
+      <button type="button" onmousedown="event.preventDefault()" onclick="numKeypadPress('3')">3</button>
+      <button type="button" onmousedown="event.preventDefault()" onclick="numKeypadPress('4')">4</button>
+      <button type="button" onmousedown="event.preventDefault()" onclick="numKeypadPress('5')">5</button>
+      <button type="button" onmousedown="event.preventDefault()" onclick="numKeypadPress('6')">6</button>
+      <button type="button" onmousedown="event.preventDefault()" onclick="numKeypadPress('7')">7</button>
+      <button type="button" onmousedown="event.preventDefault()" onclick="numKeypadPress('8')">8</button>
+      <button type="button" onmousedown="event.preventDefault()" onclick="numKeypadPress('9')">9</button>
+      <button type="button" id="numKeypadDot" onmousedown="event.preventDefault()" onclick="numKeypadPress('.')">.</button>
+      <button type="button" onmousedown="event.preventDefault()" onclick="numKeypadPress('0')">0</button>
+      <button type="button" class="num-keypad-back" onmousedown="event.preventDefault()" onclick="numKeypadPress('back')" aria-label="Backspace">⌫</button>
+    </div>
+  </div>
+</div>
 
 <script>
+/* ============================================================
+   FEATURE BUCKETS — reusable pieces of this app, by section header.
+   Search for the "==== NAME ====" comment to jump to each one. Most are
+   generic and can be lifted into a new single-file app largely as-is;
+   a few (marked *) are Overload-specific and mainly useful as a reference
+   pattern rather than drop-in code.
+   ------------------------------------------------------------
+   DATA LAYER        — localStorage load/save + versioned migration
+                        pattern (see migrateExerciseData/migrateTemplates),
+                        plus (Overload-specific*) exercises/templates CRUD,
+                        workout CRUD/stats, and date helpers.
+   ROUTER            — route object + nav(r)/render() + History API
+                        push/pop wiring (see popstate handler at the
+                        bottom of this file) for real Android back-button
+                        support with no framework.
+   ACTIVE SESSION STATE — pattern for a working in-progress screen that
+                        survives navigation/backgrounding by persisting
+                        every field to localStorage (persistActiveSession/
+                        restoreActiveSessionIfAny) and restoring on load.
+   MODAL / SHEET SYSTEM — bottom-sheet + confirm-dialog machinery
+                        (pushModalState/closeModal/showConfirmDialog) that
+                        integrates with the router so back closes a sheet
+                        before it closes the page.
+   CUSTOM NUMERIC KEYPAD — in-app 0-9 (+decimal) keypad that replaces the
+                        OS keyboard for numeric fields (inputmode="none" +
+                        a fixed-position keypad bar), guaranteeing
+                        digit-only input.
+   PAUSE WORKOUT     — start/pause/resume timer pattern (shift the stored
+                        start-time forward by the paused duration on
+                        resume) reused by both the workout and stretch
+                        timers.
+   STRETCH TIMER *   — Overload-specific usage of the pause/resume timer
+                        pattern, plus a "checkbox toggles pause+lock"
+                        convention and a big-timer modal with a slow
+                        color-pulse ring (pure CSS, no JS animation loop).
+   LOG / PLAN BUILDER * — collapsible-card-on-completion pattern (auto-
+                        collapse a list item once its sub-tasks are done,
+                        with a manual expand override) — generalizes well
+                        beyond workout sets.
+   ============================================================ */
 /* ============ DATA LAYER ============ */
 const STORAGE_KEY = "overload_data_v2";
 
@@ -775,6 +905,7 @@ function recordBackupDone(){
   saveBackupMeta(BACKUP_META);
 }
 
+/* ---- Exercises & Templates (CRUD over the global exercise/template lists) ---- */
 function getExercises(){ return [...DATA.exercises].sort((a,b)=> a.name.localeCompare(b.name)); }
 function findExercise(id){ return DATA.exercises.find(e=>e.id===id) || null; }
 function addExercise(name, increment){
@@ -800,11 +931,12 @@ function buildEntriesFromTemplate(templateId){
     const suggested = (getSuggestedWeight(exId)?.weight) || 0;
     return {
       exId, name: ex.name, warmups: [],
-      sets: [{weight:suggested, reps:null, done:false}, {weight:suggested, reps:null, done:false}, {weight:suggested, reps:null, done:false}]
+      sets: [{weight:suggested, reps:10, done:false}, {weight:suggested, reps:10, done:false}, {weight:suggested, reps:10, done:false}]
     };
   }).filter(Boolean);
 }
 
+/* ---- Workouts, Progress Stats & PR Detection ---- */
 function computeStatus(reps){
   if(reps.some(r => r < 6)) return "red";
   if(reps.every(r => r >= 10)) return "green";
@@ -842,6 +974,7 @@ function normalizeEntrySets(e){
   return (e.reps || [null,null,null]).map(r => ({ weight: e.weight || 0, reps: r }));
 }
 
+/* ---- Date Helpers ---- */
 function dateKeyLocal(d){
   const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
   return `${y}-${m}-${day}`;
@@ -973,8 +1106,16 @@ function fmtDateSmart(iso){
   return fmtDate(iso);
 }
 
-/* ============ ROUTER ============ */
+/* ============ ROUTER ============
+   Minimal hash-free router: a `route` object + nav(r) that pushes a real
+   History API entry and re-renders. Reusable as-is in any single-file app —
+   see popstate handler at the bottom for the Android-back-button wiring. */
 let route = {name:"home"};
+
+/* ============ ACTIVE SESSION STATE ============
+   Working state for the log/plan-builder screen, persisted to localStorage
+   on every edit so an in-progress session survives tab switches, the Android
+   back button, and the app being killed/reloaded in the background. */
 let sessionEntries = []; // working state for the log/plan builder screen
 let sessionType = null;
 let sessionDate = todayStr();
@@ -1056,6 +1197,29 @@ function nav(r){
   window.scrollTo(0,0);
 }
 
+/* Navigates to a route right after a confirm-dialog's "Yes" handler runs.
+   closeModal() (called just before that handler) already triggers an async
+   history.back() to consume the dialog's own history entry; pushing a new
+   route immediately can get clobbered when that back() lands afterward and
+   restores the stale route underneath. Waiting for that pop (or a short
+   timeout, in case none was pending) before replacing the entry avoids
+   ending up back on the old — now stale/empty — screen. */
+function navAfterModalClose(r){
+  let done = false;
+  const settle = ()=>{
+    if(done) return;
+    done = true;
+    window.removeEventListener("popstate", settle);
+    route = r;
+    history.replaceState({route:r}, "", "");
+    render();
+    window.scrollTo(0,0);
+  };
+  window.addEventListener("popstate", settle);
+  setTimeout(settle, 50);
+}
+
+let _lastRenderedRouteKey = null;
 function render(){
   const app = document.getElementById("app");
   let html = "";
@@ -1070,8 +1234,20 @@ function render(){
   else if(route.name === "startWorkout") html = viewStartWorkout();
 
   const showResumeBar = sessionType && route.name !== "log" && !isFuturePlan();
-  html += viewBottomNav(showResumeBar);
-  app.innerHTML = html;
+  // Only play the page-enter animation when navigating to a genuinely
+  // different screen — in-place re-renders from data changes (checking off
+  // a set, toggling a timer) reuse the same route and skip it, so the UI
+  // doesn't flicker/fade on every rapid interaction.
+  const routeKey = JSON.stringify(route);
+  const isNewRoute = routeKey !== _lastRenderedRouteKey;
+  _lastRenderedRouteKey = routeKey;
+  app.innerHTML = (isNewRoute ? `<div class="page-anim">${html}</div>` : html) + viewBottomNav(showResumeBar);
+  if(isNewRoute){
+    const pageEl = app.querySelector(".page-anim");
+    if(pageEl){
+      pageEl.addEventListener("animationend", ()=>{ pageEl.classList.remove("page-anim"); }, {once:true});
+    }
+  }
   app.style.paddingBottom = showResumeBar ? "154px" : "96px";
   afterRender();
 }
@@ -1296,12 +1472,15 @@ function renderSetLine(idx, group, si, set, label, removable){
   return `
     <div class="set-line">
       <div class="set-line-label">${label}</div>
-      <input type="number" inputmode="decimal" class="mini-weight-input" id="weight-input-${group}-${idx}-${si}" placeholder="weight"
+      <input type="text" inputmode="none" autocomplete="off" class="mini-weight-input" id="weight-input-${group}-${idx}-${si}" placeholder="weight"
         value="${set.weight === 0 ? "" : set.weight}"
-        onfocus="this.select()"
-        oninput="setSetWeight(${idx}, '${group}', ${si}, this.value)">
-      <input type="number" inputmode="numeric" class="mini-reps-input" placeholder="reps" value="${set.reps ?? ""}"
-        oninput="setSetReps(${idx}, '${group}', ${si}, this.value)">
+        onfocus="focusNumField(${idx}, '${group}', ${si}, 'weight', this)"
+        onblur="blurNumField()"
+        oninput="handleNumFieldTyped(this, ${idx}, '${group}', ${si}, 'weight')">
+      <input type="text" inputmode="none" autocomplete="off" class="mini-reps-input" id="reps-input-${group}-${idx}-${si}" placeholder="reps" value="${set.reps ?? ""}"
+        onfocus="focusNumField(${idx}, '${group}', ${si}, 'reps', this)"
+        onblur="blurNumField()"
+        oninput="handleNumFieldTyped(this, ${idx}, '${group}', ${si}, 'reps')">
       <label class="set-check" aria-label="Mark set complete">
         <input type="checkbox" id="check-${group}-${idx}-${si}" ${set.done ? "checked" : ""}
           onchange="toggleSetDone(${idx}, '${group}', ${si}, this.checked)">
@@ -1622,6 +1801,85 @@ function setSetReps(idx, group, si, val){
   }
   persistActiveSession();
 }
+
+/* ============ CUSTOM NUMERIC KEYPAD ============
+   Weight/reps inputs use inputmode="none" so the device's own keyboard
+   never appears; this in-app keypad (digits + a decimal point for weight)
+   is the only way to enter values, so nothing but numbers can get typed. */
+let activeNumField = null; // {idx, group, si, kind: 'weight'|'reps'}
+let activeNumSelectAll = false; // true right after focusing — next press replaces the whole value
+
+function numFieldElId(idx, group, si, kind){
+  return kind === "weight" ? `weight-input-${group}-${idx}-${si}` : `reps-input-${group}-${idx}-${si}`;
+}
+function focusNumField(idx, group, si, kind, el){
+  activeNumField = {idx, group, si, kind};
+  activeNumSelectAll = true;
+  try{ el.select(); }catch(e){}
+  showNumKeypad(kind);
+}
+function blurNumField(){
+  // Deferred so a keypad button's mousedown (which calls preventDefault to
+  // keep focus on the field) has already run before we consider hiding it.
+  setTimeout(()=>{
+    if(document.activeElement && document.activeElement.classList &&
+       (document.activeElement.classList.contains("mini-weight-input") || document.activeElement.classList.contains("mini-reps-input"))){
+      return; // focus moved straight to another numeric field — keep the keypad open
+    }
+    hideNumKeypad();
+  }, 120);
+}
+function showNumKeypad(kind){
+  const bar = document.getElementById("numKeypad");
+  if(!bar) return;
+  bar.classList.add("visible");
+  const label = document.getElementById("numKeypadLabel");
+  if(label) label.textContent = kind === "weight" ? "Weight" : "Reps";
+  const dot = document.getElementById("numKeypadDot");
+  if(dot) dot.style.visibility = kind === "weight" ? "visible" : "hidden";
+}
+function hideNumKeypad(){
+  const bar = document.getElementById("numKeypad");
+  if(bar) bar.classList.remove("visible");
+  activeNumField = null;
+}
+function numKeypadPress(ch){
+  if(!activeNumField) return;
+  const {idx, group, si, kind} = activeNumField;
+  const el = document.getElementById(numFieldElId(idx, group, si, kind));
+  if(!el) return;
+  let cur = activeNumSelectAll ? "" : (el.value || "");
+  activeNumSelectAll = false;
+  if(ch === "back"){
+    cur = cur.slice(0, -1);
+  }else if(ch === "."){
+    if(kind !== "weight" || cur.includes(".")) return;
+    cur += ".";
+  }else{
+    cur += ch;
+  }
+  el.value = cur;
+  if(kind === "weight") setSetWeight(idx, group, si, cur);
+  else setSetReps(idx, group, si, cur);
+  if(kind === "weight"){
+    // weight edits don't affect status/collapse, so no full render needed
+  }
+}
+function handleNumFieldTyped(el, idx, group, si, kind){
+  // Defense-in-depth filter for any input that doesn't go through the
+  // on-screen keypad (paste, a physical/bluetooth keyboard, autofill).
+  const allowDecimal = kind === "weight";
+  let v = el.value;
+  v = allowDecimal ? v.replace(/[^0-9.]/g, "") : v.replace(/[^0-9]/g, "");
+  if(allowDecimal){
+    const firstDot = v.indexOf(".");
+    if(firstDot !== -1) v = v.slice(0, firstDot+1) + v.slice(firstDot+1).replace(/\./g, "");
+  }
+  if(v !== el.value) el.value = v;
+  activeNumSelectAll = false;
+  if(kind === "weight") setSetWeight(idx, group, si, v);
+  else setSetReps(idx, group, si, v);
+}
 function toggleSetDone(idx, group, si, checked){
   sessionEntries[idx][group][si].done = checked;
   persistActiveSession();
@@ -1737,7 +1995,7 @@ function pickExercise(exId){
   sessionEntries.push({
     exId, name: ex.name,
     warmups: [],
-    sets: [{weight:suggested, reps:null, done:false}, {weight:suggested, reps:null, done:false}, {weight:suggested, reps:null, done:false}]
+    sets: [{weight:suggested, reps:10, done:false}, {weight:suggested, reps:10, done:false}, {weight:suggested, reps:10, done:false}]
   });
   persistActiveSession();
   closeModal();
@@ -1751,6 +2009,13 @@ function createAndPick(){
   pickExercise(ex.id);
 }
 let modalHistoryPushed = false;
+
+/* ============ MODAL / SHEET SYSTEM ============
+   Generic, highly reusable bottom-sheet + confirm-dialog machinery. Any
+   modal must be opened by setting #modal-root's innerHTML and calling
+   pushModalState() (so it consumes one History entry), and closed via
+   closeModal() (never by clearing innerHTML directly) so a single Android
+   back-press closes just the modal instead of leaving the page behind it. */
 function pushModalState(){
   history.pushState({modal:true}, "", "");
   modalHistoryPushed = true;
@@ -1853,7 +2118,7 @@ function discardWorkout(){
     stopStretchTimer();
     clearActiveSessionStorage();
     showToast("Workout discarded");
-    nav({name:"home"});
+    navAfterModalClose({name:"home"});
   });
 }
 
@@ -2397,7 +2662,10 @@ function showToast(msg){
   t.className = "toast";
   t.textContent = msg;
   document.body.appendChild(t);
-  setTimeout(()=> t.remove(), 2200);
+  setTimeout(()=>{
+    t.classList.add("toast-out");
+    setTimeout(()=> t.remove(), 220);
+  }, 2000);
 }
 
 function afterRender(){
