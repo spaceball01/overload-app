@@ -64,7 +64,7 @@ body{
    feel eased rather than snapping instantly — the single biggest lever
    for a native, polished feel on top of an otherwise-static layout. */
 button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
-.add-exercise-btn, .date-field-row, .backup-reminder{
+.add-exercise-btn, .header-date-row, .backup-reminder{
   transition:transform .16s cubic-bezier(.2,.8,.2,1), background-color .18s ease, border-color .18s ease, box-shadow .18s ease, opacity .18s ease;
 }
 .session-row:active, .plan-row:active, .pick-row:active,
@@ -279,12 +279,13 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
 .pause-btn:active{background:var(--accent-soft);}
 .stretch-row{
   display:flex; align-items:center; justify-content:space-between; gap:10px;
-  margin:0 20px 16px; padding:12px 16px; background:var(--bg-card); border:1px solid var(--border);
-  border-radius:var(--radius-md); cursor:pointer;
+  margin:0 20px; padding:18px 0; border-bottom:1px solid var(--border);
+  cursor:pointer;
 }
 .stretch-row.stretch-add{
-  background:none; border:1.5px dashed var(--border); justify-content:center;
-  color:var(--accent-hi); font-weight:700; font-size:14px; cursor:pointer; padding:14px 16px;
+  margin:0 20px 16px; padding:14px 16px; border:1.5px dashed var(--border); border-radius:var(--radius-lg);
+  background:none; justify-content:center;
+  color:var(--accent-hi); font-weight:700; font-size:14px; cursor:pointer;
 }
 .stretch-row.stretch-add:active{background:var(--accent-soft);}
 .stretch-label{font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:1.5px; font-weight:700;}
@@ -316,6 +317,14 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
 .timer-ring{
   position:absolute; width:150px; height:150px; border-radius:50%;
   border:3px solid var(--accent);
+}
+.timer-ring.is-pulsing{
+  animation:stretchPulse 4.2s ease-in-out infinite;
+}
+@keyframes stretchPulse{
+  0%{ border-color:var(--accent); box-shadow:0 0 0 0 rgba(201,162,39,0.16); }
+  50%{ border-color:var(--accent-hi); box-shadow:0 0 26px 8px rgba(228,188,62,0.32); }
+  100%{ border-color:var(--accent); box-shadow:0 0 0 0 rgba(201,162,39,0.16); }
 }
 .timer-ring-time{
   position:relative; z-index:1;
@@ -422,18 +431,16 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
 .exercise-card .collapse-toggle-btn svg{width:15px; height:15px; transform:rotate(180deg);}
 .exercise-card .collapse-toggle-btn:active{color:var(--accent-hi);}
 
-.date-field-row{
+.header-date-row{
   display:flex; align-items:center; justify-content:space-between;
-  margin:0 20px 16px; padding:12px 16px; background:var(--bg-card); border:1px solid var(--border);
-  border-radius:var(--radius-md);
-  box-shadow:0 1px 2px rgba(0,0,0,0.16), 0 4px 10px rgba(0,0,0,0.12);
+  padding:0 20px 12px; gap:10px;
 }
-.date-field-row label{font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:1.5px; font-weight:700;}
-.date-field-row input[type=date]{
-  background:none; border:none; color:var(--accent-hi); font-family:var(--font-mono); font-size:14px;
-  text-align:right;
+.header-date-row label{font-size:10px; color:var(--text-faint); text-transform:uppercase; letter-spacing:1.2px; font-weight:700;}
+.header-date-row input[type=date]{
+  background:none; border:none; color:var(--accent-hi); font-family:var(--font-mono); font-size:13px;
+  text-align:right; padding:0;
 }
-.date-field-row input[type=date]::-webkit-calendar-picker-indicator{ filter:invert(70%) sepia(60%) saturate(400%) hue-rotate(0deg); opacity:.85;}
+.header-date-row input[type=date]::-webkit-calendar-picker-indicator{ filter:invert(70%) sepia(60%) saturate(400%) hue-rotate(0deg); opacity:.85;}
 .plan-hint{margin:10px 4px 0; font-size:11.5px; color:var(--text-faint); text-align:center; line-height:1.4;}
 .set-table{ margin-bottom:4px; }
 .set-table-head{
@@ -1513,7 +1520,7 @@ function beginPlan(templateId){
   expandedOverrides = new Set();
   persistActiveSession();
   closeModal();
-  nav({name:"log"});
+  navAfterModalClose({name:"log"});
 }
 function continuePlanned(workoutId){
   const w = DATA.workouts.find(w=>w.id===workoutId);
@@ -1662,16 +1669,16 @@ function viewLog(){
           <div class="workout-timer" id="workoutTimer">0:00</div>
         `}
       </div>
+      <div class="header-date-row">
+        <label>Date</label>
+        <input type="date" value="${sessionDate}" onchange="setSessionDate(this.value)">
+      </div>
       ${hasEntries ? `
         <div class="ex-progress-row">
           <div class="ex-progress-label">${completedCount}/${totalCount} Exercises</div>
           <div class="ex-progress-track"><div class="ex-progress-fill" style="width:${progressPct}%"></div></div>
         </div>
       ` : ""}
-    </div>
-    <div class="date-field-row">
-      <label>Date</label>
-      <input type="date" value="${sessionDate}" onchange="setSessionDate(this.value)">
     </div>
     ${isFuturePlan() ? "" : renderStretchRow()}
     ${cards || `<div class="empty-state" style="margin:0 20px;">Add an exercise below to start this session.</div>`}
@@ -1836,7 +1843,7 @@ function renderStretchModeTabs(){
     </div>
   `;
 }
-function renderStretchMainSheet(){
+function renderStretchMainBody(){
   const running = stretchPhase === "running";
   const paused = stretchPhase === "paused";
   let actionsHtml = "";
@@ -1858,91 +1865,89 @@ function renderStretchMainSheet(){
       </div>`;
   }
   return `
-    <div class="sheet timer-sheet">
-      <div class="sheet-handle"></div>
-      <div class="timer-topbar">
-        <button class="timer-topbar-close" onclick="closeModal()" aria-label="Close">${ICONS.back}</button>
-        <div class="timer-topbar-title">Stretch Timer</div>
-        <div class="timer-topbar-spacer"></div>
-      </div>
-      <div class="timer-ring-wrap">
-        <div class="timer-ring"></div>
-        <div class="timer-ring-time" id="stretchTimerBig">${fmtDuration(stretchElapsedSeconds())}</div>
-      </div>
-      ${actionsHtml}
-      ${renderStretchModeTabs()}
+    <div class="timer-topbar">
+      <button class="timer-topbar-close" onclick="closeModal()" aria-label="Close">${ICONS.back}</button>
+      <div class="timer-topbar-title">Stretch Timer</div>
+      <div class="timer-topbar-spacer"></div>
     </div>
+    <div class="timer-ring-wrap">
+      <div class="timer-ring ${running ? "is-pulsing" : ""}"></div>
+      <div class="timer-ring-time" id="stretchTimerBig">${fmtDuration(stretchElapsedSeconds())}</div>
+    </div>
+    ${actionsHtml}
+    ${renderStretchModeTabs()}
   `;
 }
-function renderStretchStopConfirmSheet(){
+function renderStretchStopConfirmBody(){
   return `
-    <div class="sheet timer-sheet">
-      <div class="sheet-handle"></div>
-      <div class="stop-total-time">
-        <div class="n">${fmtDuration(stretchElapsedSeconds())}</div>
-        <div class="label">Total time</div>
-      </div>
-      <button class="stop-option-row" onclick="confirmSaveStretchTime()">
-        <span class="stop-option-icon">${ICONS.stopwatch}</span> Save Time Record
-      </button>
-      <button class="stop-option-row" onclick="openEditStretchTimeModal()">
-        <span class="stop-option-icon">${ICONS.edit}</span> Edit Time Record
-      </button>
-      <button class="stop-close-btn" onclick="cancelStretchStop()">Close</button>
+    <div class="stop-total-time">
+      <div class="n">${fmtDuration(stretchElapsedSeconds())}</div>
+      <div class="label">Total time</div>
     </div>
+    <button class="stop-option-row" onclick="confirmSaveStretchTime()">
+      <span class="stop-option-icon">${ICONS.stopwatch}</span> Save Time Record
+    </button>
+    <button class="stop-option-row" onclick="openEditStretchTimeModal()">
+      <span class="stop-option-icon">${ICONS.edit}</span> Edit Time Record
+    </button>
+    <button class="stop-close-btn" onclick="cancelStretchStop()">Close</button>
   `;
 }
-function renderStretchEditSheet(){
+function renderStretchEditBody(){
   return `
-    <div class="sheet timer-sheet">
-      <div class="sheet-handle"></div>
-      <div class="sheet-title">Edit Time</div>
-      <div class="hms-row">
-        <div class="hms-field">
-          <input type="text" inputmode="none" autocomplete="off" class="hms-input" id="editHoursInput" value="${stretchEditH}"
-            onfocus="focusNumField(0, '', 0, 'stretchH', this)" onblur="blurNumField()"
-            oninput="handleNumFieldTyped(this, 0, '', 0, 'stretchH')">
-          <label>hours</label>
-        </div>
-        <div class="hms-field">
-          <input type="text" inputmode="none" autocomplete="off" class="hms-input" id="editMinutesInput" value="${stretchEditM}"
-            onfocus="focusNumField(0, '', 0, 'stretchM', this)" onblur="blurNumField()"
-            oninput="handleNumFieldTyped(this, 0, '', 0, 'stretchM')">
-          <label>minutes</label>
-        </div>
-        <div class="hms-field">
-          <input type="text" inputmode="none" autocomplete="off" class="hms-input" id="editSecondsInput" value="${stretchEditS}"
-            onfocus="focusNumField(0, '', 0, 'stretchS', this)" onblur="blurNumField()"
-            oninput="handleNumFieldTyped(this, 0, '', 0, 'stretchS')">
-          <label>seconds</label>
-        </div>
+    <div class="sheet-title">Edit Time</div>
+    <div class="hms-row">
+      <div class="hms-field">
+        <input type="text" inputmode="none" autocomplete="off" class="hms-input" id="editHoursInput" value="${stretchEditH}"
+          onfocus="focusNumField(0, '', 0, 'stretchH', this)" onblur="blurNumField()"
+          oninput="handleNumFieldTyped(this, 0, '', 0, 'stretchH')">
+        <label>hours</label>
       </div>
-      <div class="confirm-actions">
-        <button class="confirm-btn" onclick="backToStretchStopConfirm()">Close</button>
-        <button class="confirm-btn confirm-btn-accent" onclick="confirmEditStretchTime()">OK</button>
+      <div class="hms-field">
+        <input type="text" inputmode="none" autocomplete="off" class="hms-input" id="editMinutesInput" value="${stretchEditM}"
+          onfocus="focusNumField(0, '', 0, 'stretchM', this)" onblur="blurNumField()"
+          oninput="handleNumFieldTyped(this, 0, '', 0, 'stretchM')">
+        <label>minutes</label>
       </div>
+      <div class="hms-field">
+        <input type="text" inputmode="none" autocomplete="off" class="hms-input" id="editSecondsInput" value="${stretchEditS}"
+          onfocus="focusNumField(0, '', 0, 'stretchS', this)" onblur="blurNumField()"
+          oninput="handleNumFieldTyped(this, 0, '', 0, 'stretchS')">
+        <label>seconds</label>
+      </div>
+    </div>
+    <div class="confirm-actions">
+      <button class="confirm-btn" onclick="backToStretchStopConfirm()">Close</button>
+      <button class="confirm-btn confirm-btn-accent" onclick="confirmEditStretchTime()">OK</button>
     </div>
   `;
 }
-function renderStretchSheet(){
+function renderStretchSheetBody(){
   if(stretchPhase === "stopped"){
-    return stretchStopView === "edit" ? renderStretchEditSheet() : renderStretchStopConfirmSheet();
+    return stretchStopView === "edit" ? renderStretchEditBody() : renderStretchStopConfirmBody();
   }
-  return renderStretchMainSheet();
+  return renderStretchMainBody();
 }
 function openStretchTimerModal(){
   const modal = document.getElementById("modal-root");
   modal.innerHTML = `
     <div class="sheet-backdrop" onclick="if(event.target===this) closeModal()">
-      ${renderStretchSheet()}
+      <div class="sheet timer-sheet">
+        <div class="sheet-handle"></div>
+        <div id="timerSheetBody">${renderStretchSheetBody()}</div>
+      </div>
     </div>
   `;
   pushModalState();
 }
 function refreshStretchSheet(){
-  const wrap = document.querySelector("#modal-root .timer-sheet");
-  if(!wrap) return;
-  wrap.outerHTML = renderStretchSheet();
+  // Swaps only the inner body — the outer .sheet (and its one-time slide-up/
+  // fade-in entrance animation) stays the same DOM node across every Start/
+  // Pause/Resume/Stop tap, so the sheet updates in place instead of looking
+  // like a brand-new pop-up sliding in each time.
+  const body = document.getElementById("timerSheetBody");
+  if(!body) return;
+  body.innerHTML = renderStretchSheetBody();
 }
 
 
@@ -2288,6 +2293,7 @@ function saveSession(){
     saveData(DATA);
   }
   sessionEntries = [];
+  sessionType = null;
   editingWorkoutId = null;
   sessionStartTime = null;
   sessionPausedAt = null;
