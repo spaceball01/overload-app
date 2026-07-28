@@ -351,12 +351,15 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
   border-radius:var(--radius-lg); padding:16px;
 }
 .calendar-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px;}
+.cal-month-viewport{position:relative; overflow:hidden; flex:1; text-align:center;}
+.cal-month-inner{width:100%;}
 .calendar-month{font-family:var(--font-display); font-weight:800; font-size:16px; letter-spacing:.5px; text-transform:uppercase;}
 .calendar-sub-group{text-align:right;}
 .calendar-streak{font-size:12px; font-weight:800; color:var(--accent-hi);}
 .calendar-sub{font-size:11px; color:var(--text-faint); margin-top:1px;}
 .cal-weekdays{display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:6px;}
 .cal-weekdays div{text-align:center; font-size:10px; color:var(--text-faint); letter-spacing:.5px; text-transform:uppercase;}
+.cal-grid-viewport{position:relative;}
 .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px;}
 .cal-day{
   position:relative;
@@ -388,10 +391,6 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
 .cal-nav-btn:active{transform:scale(0.9);}
 .cal-today-link{font-size:10.5px; color:var(--accent-hi); font-weight:700; margin-top:2px; cursor:pointer;}
 .cal-hint{text-align:center; font-size:10.5px; color:var(--text-faint); margin-top:12px;}
-@keyframes calSlideFromRight{ from{ transform:translateX(36px); opacity:.35; } to{ transform:translateX(0); opacity:1; } }
-@keyframes calSlideFromLeft{ from{ transform:translateX(-36px); opacity:.35; } to{ transform:translateX(0); opacity:1; } }
-.calendar-card.cal-anim-right{ animation:calSlideFromRight .32s cubic-bezier(.16,1,.3,1) both; }
-.calendar-card.cal-anim-left{ animation:calSlideFromLeft .32s cubic-bezier(.16,1,.3,1) both; }
 
 /* Year view */
 .year-nav{display:flex; align-items:center; justify-content:center; gap:18px; margin:14px 0 4px;}
@@ -2239,18 +2238,109 @@ let calendarViewYear = new Date().getFullYear();
 let calendarViewMonth = new Date().getMonth(); // 0-indexed
 let calSwipeHandled = false;
 let calTouchStartX = null, calTouchStartY = null;
-// Set right before a month change + render(), then consumed (and reset to
-// null) the next time renderCalendar() runs, so the entrance animation
-// only plays for the render that actually changed the month — not for
-// unrelated Home re-renders afterward.
-let calendarSlideDir = null;
+
+/* Builds just the day-grid cells for a given month — split out from
+   renderCalendar() so a month change can regenerate this fragment on its
+   own and wipe it into the existing card, instead of going through the
+   full-page render() (which would tear down and recreate the whole
+   calendar card as a new element every time). */
+function buildCalGridCells(year, month){
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const completed = getCompletedDatesSet();
+  const prDates = getPRDatesSet(getAllPRKeys());
+  const todayKey = todayStr();
+  let cells = "";
+  for(let i=0;i<firstDay;i++) cells += `<div class="cal-day empty"></div>`;
+  for(let d=1; d<=daysInMonth; d++){
+    const key = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const classes = ["cal-day"];
+    if(completed.has(key)) classes.push("done");
+    if(key === todayKey) classes.push("today");
+    const star = prDates.has(key) ? `<span class="cal-pr-star">${ICONS.star}</span>` : "";
+    cells += `<div class="${classes.join(' ')}" onclick="event.stopPropagation(); nav({name:'day', date:'${key}'})">${star}${d}</div>`;
+  }
+  return cells;
+}
+function buildCalMonthLabel(year, month){
+  const monthName = new Date(year, month, 1).toLocaleDateString(undefined, {month:"long", year:"numeric"});
+  const isCurrentMonth = (year === new Date().getFullYear() && month === new Date().getMonth());
+  return `
+    <div class="calendar-month">${monthName}</div>
+    ${!isCurrentMonth ? `<div class="cal-today-link" onclick="event.stopPropagation(); jumpCalendarToToday()">Jump to today</div>` : ""}
+  `;
+}
+
+/* Wipes the calendar from the currently-shown month to whatever
+   calendarViewYear/calendarViewMonth now hold, entirely inside the
+   existing card — the card, its buttons, the streak line, and everything
+   else on Home stay exactly where they are; only the grid and the month
+   label are replaced, and only via a clip-path sweep (the "wipe" effect
+   rather than a fade or a translate-in of a freshly built node). Falls
+   back to a normal render() if the expected DOM isn't there for any
+   reason, so this never leaves the calendar stuck. */
+let calWipeInFlight = { grid: null, month: null };
+function wipeCalendarTo(direction){
+  const gridViewport = document.getElementById("calGridViewport");
+  const monthViewport = document.getElementById("calMonthViewport");
+  const oldGrid = document.getElementById("calGrid");
+  const oldMonth = document.getElementById("calMonthInner");
+  if(!gridViewport || !monthViewport || !oldGrid || !oldMonth){ render(); return; }
+
+  const revealFrom = direction === "next" ? "right" : "left";
+  const startClip = revealFrom === "right" ? "inset(0 0 0 100%)" : "inset(0 100% 0 0)";
+
+  const wipeIn = (key, viewport, oldEl, newHTML)=>{
+    // A previous swipe on this same viewport is still mid-transition —
+    // snap it to its end state immediately rather than stacking a third
+    // layer on top, so rapid back-to-back swipes stay tidy.
+    if(calWipeInFlight[key]) calWipeInFlight[key]();
+
+    const newEl = document.createElement("div");
+    newEl.id = oldEl.id;
+    newEl.className = oldEl.className;
+    newEl.innerHTML = newHTML;
+    newEl.style.position = "absolute";
+    newEl.style.top = "0"; newEl.style.left = "0"; newEl.style.right = "0";
+    newEl.style.clipPath = startClip;
+    newEl.style.webkitClipPath = startClip;
+    newEl.style.transition = "clip-path .34s cubic-bezier(.65,0,.35,1), -webkit-clip-path .34s cubic-bezier(.65,0,.35,1)";
+    oldEl.id = ""; // free up the id so getElementById always finds the live layer
+    viewport.style.position = "relative";
+    viewport.appendChild(newEl);
+    void newEl.offsetWidth; // force layout before animating
+    requestAnimationFrame(()=>{
+      newEl.style.clipPath = "inset(0 0 0 0)";
+      newEl.style.webkitClipPath = "inset(0 0 0 0)";
+    });
+    let done = false;
+    const finish = ()=>{
+      if(done) return;
+      done = true;
+      if(oldEl.parentNode) oldEl.parentNode.removeChild(oldEl);
+      newEl.style.position = "";
+      newEl.style.top = newEl.style.left = newEl.style.right = "";
+      newEl.style.clipPath = ""; newEl.style.webkitClipPath = "";
+      newEl.style.transition = "";
+      newEl.removeEventListener("transitionend", onEnd);
+      clearTimeout(safety);
+      if(calWipeInFlight[key] === finish) calWipeInFlight[key] = null;
+    };
+    const onEnd = (e)=>{ if(e.target === newEl) finish(); };
+    newEl.addEventListener("transitionend", onEnd);
+    const safety = setTimeout(finish, 420); // in case transitionend doesn't fire
+    calWipeInFlight[key] = finish;
+  };
+
+  wipeIn("grid", gridViewport, oldGrid, buildCalGridCells(calendarViewYear, calendarViewMonth));
+  wipeIn("month", monthViewport, oldMonth, buildCalMonthLabel(calendarViewYear, calendarViewMonth));
+}
 
 function changeCalendarMonth(delta){
-  calendarSlideDir = delta > 0 ? "next" : "prev";
   calendarViewMonth += delta;
   if(calendarViewMonth < 0){ calendarViewMonth = 11; calendarViewYear--; }
   else if(calendarViewMonth > 11){ calendarViewMonth = 0; calendarViewYear++; }
-  render();
+  wipeCalendarTo(delta > 0 ? "next" : "prev");
 }
 function jumpCalendarToToday(){
   calendarViewYear = new Date().getFullYear();
@@ -2270,11 +2360,12 @@ function calendarTouchMove(e){
   // page doesn't also scroll vertically underneath the swipe.
   if(Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)){
     e.preventDefault();
-    // Live drag-follow: the card tracks the finger (heavily damped, and
-    // capped) so the swipe feels continuous rather than all-or-nothing.
+    // Live drag-follow: a small, heavily-damped, capped nudge so the swipe
+    // feels responsive while you're dragging — released into the actual
+    // wipe (or sprung back) in calendarTouchEnd.
     const card = document.getElementById("calendarCard");
     if(card){
-      const drag = Math.max(-32, Math.min(32, dx * 0.35));
+      const drag = Math.max(-18, Math.min(18, dx * 0.2));
       card.style.transition = "none";
       card.style.transform = `translateX(${drag}px)`;
     }
@@ -2287,6 +2378,7 @@ function calendarTouchEnd(e){
   calTouchStartX = null; calTouchStartY = null;
   const card = document.getElementById("calendarCard");
   if(Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.5){
+    if(card){ card.style.transition = ""; card.style.transform = ""; }
     changeCalendarMonth(dx < 0 ? 1 : -1);
     calSwipeHandled = true;
     e.preventDefault();
@@ -2314,39 +2406,16 @@ function calendarBackgroundTap(){
 
 function renderCalendar(){
   const year = calendarViewYear, month = calendarViewMonth;
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month+1, 0).getDate();
   const completed = getCompletedDatesSet();
-  const prDates = getPRDatesSet(getAllPRKeys());
-  const todayKey = todayStr();
-  const monthName = new Date(year, month, 1).toLocaleDateString(undefined, {month:"long", year:"numeric"});
   const streak = getCurrentStreak();
-  const isCurrentMonth = (year === new Date().getFullYear() && month === new Date().getMonth());
-
-  // Consume the pending slide direction (if any) for just this render, so a
-  // later unrelated Home re-render doesn't replay the transition.
-  const slideClass = calendarSlideDir === "next" ? "cal-anim-right" : calendarSlideDir === "prev" ? "cal-anim-left" : "";
-  calendarSlideDir = null;
-
-  let cells = "";
-  for(let i=0;i<firstDay;i++) cells += `<div class="cal-day empty"></div>`;
-  for(let d=1; d<=daysInMonth; d++){
-    const key = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const classes = ["cal-day"];
-    if(completed.has(key)) classes.push("done");
-    if(key === todayKey) classes.push("today");
-    const star = prDates.has(key) ? `<span class="cal-pr-star">${ICONS.star}</span>` : "";
-    cells += `<div class="${classes.join(' ')}" onclick="event.stopPropagation(); nav({name:'day', date:'${key}'})">${star}${d}</div>`;
-  }
 
   return `
-    <div class="calendar-card ${slideClass}" id="calendarCard" onclick="calendarBackgroundTap()"
+    <div class="calendar-card" id="calendarCard" onclick="calendarBackgroundTap()"
       ontouchstart="calendarTouchStart(event)" ontouchmove="calendarTouchMove(event)" ontouchend="calendarTouchEnd(event)">
       <div class="calendar-head">
         <button class="cal-nav-btn" onclick="event.stopPropagation(); changeCalendarMonth(-1)" aria-label="Previous month">‹</button>
-        <div style="text-align:center;">
-          <div class="calendar-month">${monthName}</div>
-          ${!isCurrentMonth ? `<div class="cal-today-link" onclick="event.stopPropagation(); jumpCalendarToToday()">Jump to today</div>` : ""}
+        <div class="cal-month-viewport" id="calMonthViewport">
+          <div class="cal-month-inner" id="calMonthInner">${buildCalMonthLabel(year, month)}</div>
         </div>
         <button class="cal-nav-btn" onclick="event.stopPropagation(); changeCalendarMonth(1)" aria-label="Next month">›</button>
       </div>
@@ -2355,7 +2424,9 @@ function renderCalendar(){
         <span class="calendar-sub">${completed.size} day${completed.size===1?"":"s"} trained</span>
       </div>
       <div class="cal-weekdays"><div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div></div>
-      <div class="cal-grid">${cells}</div>
+      <div class="cal-grid-viewport" id="calGridViewport">
+        <div class="cal-grid" id="calGrid">${buildCalGridCells(year, month)}</div>
+      </div>
       <div class="cal-hint">Swipe to change months · tap here for year view</div>
     </div>
   `;
