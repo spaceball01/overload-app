@@ -290,8 +290,20 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
 .stretch-row.stretch-add:active{background:var(--accent-soft);}
 .stretch-label{font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:1.5px; font-weight:700;}
 .stretch-timer{font-family:var(--font-mono); font-size:14px; color:var(--accent-hi); font-weight:700; flex:1; text-align:right; margin-right:4px;}
-.stretch-done-check{color:var(--green); flex-shrink:0; transform:rotate(180deg); display:flex;}
-.stretch-done-check svg{width:16px; height:16px;}
+.stretch-set-table{ margin:0 20px 16px; }
+/* Whichever stretch element sits directly under the sticky header gets a
+   little breathing room, without stacking extra space when both a saved-
+   entries table AND the add-button/live-row both render below it. */
+.session-header-sticky + .stretch-row,
+.session-header-sticky + .stretch-set-table,
+.session-header-sticky + .exercise-card,
+.session-header-sticky + .empty-state{ margin-top:16px; }
+.stretch-set-time{
+  grid-column:span 2;
+  background:var(--bg-card-2); border:1px solid var(--border); border-radius:8px;
+  color:var(--accent-hi); text-align:center; cursor:pointer;
+  font-family:var(--font-mono); font-size:15px; font-weight:700; padding:9px 2px;
+}
 
 /* ---- Full-screen-style stretch timer sheet ---- */
 .timer-sheet{ text-align:center; padding-top:6px; }
@@ -314,17 +326,23 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
   position:relative; display:flex; align-items:center; justify-content:center;
   height:190px; margin:6px 0 22px;
 }
-.timer-ring{
-  position:absolute; width:150px; height:150px; border-radius:50%;
-  border:3px solid var(--accent);
+.timer-ring-svg{
+  position:absolute; width:150px; height:150px; transform:rotate(-90deg);
 }
-.timer-ring.is-pulsing{
+.timer-ring-track{
+  fill:none; stroke:var(--border); stroke-width:5;
+}
+.timer-ring-progress{
+  fill:none; stroke:var(--accent); stroke-width:5; stroke-linecap:round;
+  transition:stroke-dashoffset 1s linear;
+}
+.timer-ring-progress.is-pulsing{
   animation:stretchPulse 4.2s ease-in-out infinite;
 }
 @keyframes stretchPulse{
-  0%{ border-color:var(--accent); box-shadow:0 0 0 0 rgba(201,162,39,0.16); }
-  50%{ border-color:var(--accent-hi); box-shadow:0 0 26px 8px rgba(228,188,62,0.32); }
-  100%{ border-color:var(--accent); box-shadow:0 0 0 0 rgba(201,162,39,0.16); }
+  0%{ stroke:var(--accent); filter:drop-shadow(0 0 0px rgba(228,188,62,0)); }
+  50%{ stroke:var(--accent-hi); filter:drop-shadow(0 0 7px rgba(228,188,62,0.75)); }
+  100%{ stroke:var(--accent); filter:drop-shadow(0 0 0px rgba(228,188,62,0)); }
 }
 .timer-ring-time{
   position:relative; z-index:1;
@@ -389,6 +407,46 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
 .hms-input:focus{outline:none; border-color:var(--accent);}
 .hms-field label{font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:1px; font-weight:700;}
 
+/* ---- Intervals setup (list of interval durations + loop count) ---- */
+.intervals-setup{ text-align:left; }
+.intervals-list-label{
+  font-size:10px; color:var(--text-faint); text-transform:uppercase; letter-spacing:1.2px; font-weight:700;
+  margin-bottom:8px;
+}
+.interval-row{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  background:var(--bg-card-2); border:1px solid var(--border); border-radius:10px;
+  padding:12px 14px; margin-bottom:8px;
+}
+.interval-time{
+  font-family:var(--font-mono); font-weight:700; font-size:15px; color:var(--text); cursor:pointer;
+}
+.interval-remove{
+  background:none; border:none; color:var(--text-faint); padding:0; cursor:pointer;
+  display:flex; align-items:center;
+}
+.interval-remove svg{width:17px; height:17px;}
+.interval-remove:active{color:var(--red);}
+.add-interval-btn{
+  display:block; width:100%; text-align:center; margin-bottom:16px;
+  padding:13px; border:1.5px dashed var(--border); border-radius:10px;
+  background:none; color:var(--accent-hi); font-weight:700; font-size:13px;
+  letter-spacing:.3px; text-transform:uppercase; cursor:pointer;
+}
+.add-interval-btn:active{background:var(--accent-soft);}
+.loops-row{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:4px 2px;
+}
+.loops-label{font-size:14px; font-weight:700; color:var(--text);}
+.loops-sublabel{font-size:11px; color:var(--text-faint); margin-top:1px;}
+.loops-input{
+  width:64px; background:var(--bg-card-2); border:1px solid var(--border);
+  border-radius:8px; color:var(--text); text-align:center;
+  font-family:var(--font-mono); font-size:16px; font-weight:700; padding:9px 2px;
+}
+.loops-input:focus{outline:none; border-color:var(--accent);}
+
 /* Exercise entry cards in Log view */
 .exercise-card{
   margin:0 20px; padding:18px 0 20px;
@@ -445,7 +503,7 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
 .set-table{ margin-bottom:4px; }
 .set-table-head{
   display:grid; grid-template-columns:38px 1fr 1fr 34px 22px;
-  gap:8px; padding:0 2px 10px; align-items:center;
+  gap:8px; padding:0 0 10px; align-items:center;
 }
 .set-table-head span{
   font-size:9.5px; color:var(--text-faint); letter-spacing:1.2px; text-transform:uppercase; font-weight:700; text-align:center;
@@ -614,6 +672,7 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
 }
 .ex-row .en{font-weight:700; font-size:15px;}
 .ex-row .es{font-size:11.5px; color:var(--text-faint); margin-top:2px;}
+.muscle-tag{font-size:11.5px; color:var(--text-faint); margin-top:2px; font-weight:400;}
 .chev{color:var(--text-faint); font-size:18px;}
 
 /* Exercise detail */
@@ -844,6 +903,471 @@ const DEFAULT_EXERCISES = [
   "Deadlift","Barbell Row","Lat Pulldown","Pull-Up","Seated Cable Row",
   "Overhead Press","Barbell Curl","Tricep Pushdown","Lateral Raise","Face Pull"
 ];
+
+/* ---- Canonical exercise database ----
+   One shared, deduped list of exercises (name + target muscle + how it's
+   measured) sourced from the user's spreadsheet. This replaces ad-hoc
+   exercise creation as the source of truth so the same lift never ends up
+   duplicated under two slightly different names. measureType drives how a
+   set is logged:
+     "sets_reps"      — weight + reps per set (the original/default flow)
+     "sets_timer"      — sets, each timed rather than rep-counted
+     "distance_timer"  — a distance value + an elapsed timer (cardio)
+   Only "sets_reps" has full logging UI today; the other two are tagged and
+   ready for a future update to their own entry flow (see handoff notes). */
+const EXERCISE_DATABASE = [
+  {name:'21s Bicep Curl', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Ab Scissors', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Ab Wheel', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Aerobics', muscle:'Cardio', measureType:'distance_timer'},
+  {name:'Air Bike', muscle:'Cardio', measureType:'distance_timer'},
+  {name:'Arnold Press (Dumbbell)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Around The World', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Assisted Pistol Squats', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Back Extension (Hyperextension)', muscle:'Lower Back', measureType:'sets_reps'},
+  {name:'Back Extension (Machine)', muscle:'Lower Back', measureType:'sets_reps'},
+  {name:'Back Extension (Weighted Hyperextension)', muscle:'Lower Back', measureType:'sets_reps'},
+  {name:'Ball Slams', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Band Pullaparts', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Battle Ropes', muscle:'Cardio', measureType:'sets_timer'},
+  {name:'Bear Crawl', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Behind The Back Curl (Cable)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Behind The Back Wrist Curl (Barbell)', muscle:'Forearms', measureType:'sets_reps'},
+  {name:'Belt Squat (Machine)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Bench Dip', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Bench Press - Close Grip (Barbell)', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Bench Press - Wide Grip (Barbell)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Bench Press (Barbell)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Bench Press (Cable)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Bench Press (Dumbbell)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Bench Press (Smith Machine)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Bent Over Row (Band)', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Bent Over Row (Barbell)', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Bent Over Row (Dumbbell)', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Bent Over Row (Smith Machine)', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Bicep Curl (Barbell)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Bicep Curl (Cable)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Bicep Curl (Dumbbell)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Bicep Curl (Machine)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Bicep Curl (Suspension)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Bicycle Crunch', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Bicycle Crunch Raise Legs', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Bird Dog', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Box Jump', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Box Squat (Barbell)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Boxing', muscle:'Cardio', measureType:'distance_timer'},
+  {name:'Bulgarian Split Squat (Barbell)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Bulgarian Split Squat (Dumbbell)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Burpee', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Burpee Broad Jumps', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Burpee Over The Bar', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Butterfly (Pec Dec)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Cable Core Pallof Press', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Cable Crunch', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Cable Fly Crossovers', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Cable Pull Through', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Cable Twist (Down To Up)', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Cable Twist (Up To Down)', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Calf Extension (Machine)', muscle:'Calves', measureType:'sets_reps'},
+  {name:'Calf Press (Machine)', muscle:'Calves', measureType:'sets_reps'},
+  {name:'Chest Dip', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Chest Dip (Assisted)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Chest Dip (Weighted)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Chest Fly (Band)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Chest Fly (Dumbbell)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Chest Fly (Machine)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Chest Fly (Suspension)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Chest Press (Band)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Chest Press (Machine)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Chest Supported Incline Row (Dumbbell)', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Chest Support Reverse Fly (Dumbbell)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Chest Supported T Bar Row', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Chest Supported Y Raise (Dumbbell)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Chin Up', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Chin Up (Assisted)', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Chin Up (Weighted)', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Clamshell', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Clap Push Ups', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Clean', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Clean And Jerk', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Clean And Press', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Clean Pull', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Climbing', muscle:'Cardio', measureType:'distance_timer'},
+  {name:'Concentration Curl', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Cross Body Hammer Curl', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Crunch', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Crunch (Machine)', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Crunch (Weighted)', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Curtsy Lunge (Dumbbell)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Cycling', muscle:'Cardio', measureType:'distance_timer'},
+  {name:'Dead Bug', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Dead Hang', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Deadlift (Band)', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Deadlift (Barbell)', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Deadlift (Dumbbell)', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Deadlift (Smith Machine)', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Deadlift (Trap Bar)', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Deadlift High Pull', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Delcine Bench Press (Barbell)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Decline Bench Press (Dumbbell)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Decline Bench Press (Machine)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Decline Bench Press (Smith Machine)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Decline Chest Fly (Dumbbell)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Decline Crunch', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Decline Crunch (Weighted)', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Decline Push Up', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Diamond Push Up', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Downward Dog', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Drag Curl', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Dragon Flag', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Dragonfly', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Dumbbell Row', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Dumbbell Snatch', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Dumbbell Squeeze Press', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Dumbbell Step Up', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Elbow To Knee', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Elliptical Trainer', muscle:'Cardio', measureType:'distance_timer'},
+  {name:'EZ Bar Biceps Curl', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Face Pull', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Farmers Walk', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Feet Up Bench Press (Barbell)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Fire Hydrants', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Floor Press (Barbell)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Floor Press (Dumbbell)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Floor Triceps Dip', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Flutter Kicks', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Frog Jumps', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Frog Pumps (Dumbbell)', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Front Lever Hold', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Front Lever Raise', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Front Raise (Band)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Front Raise (Barbell)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Front Raise (Cable)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Front Raise (Dumbbell)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Front Raise (Suspension)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Front Squat', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Full Squat', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Glute Bridge', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Glute Bridge (Barbell)', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Glute Ham Raise', muscle:'Hamstrings', measureType:'sets_reps'},
+  {name:'Glute Kickback (Machine)', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Glute Kickback On Floor', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Goblet Squat', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Good Morning (Barbell)', muscle:'Hamstrings', measureType:'sets_reps'},
+  {name:'Gorilla Row (Kettlebell)', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Hack Squat', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Hack Squat (Machine)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Hammer Curl (Band)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Hammer Curl (Cable)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Hammer Curl (Dumbbell)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Handstand Hold', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Handstand Push Up', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Hang Clean', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Hang Snatch', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Hanging Knee Raise', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Hanging Leg Raise', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Heel Taps', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Hex Press (Dumbbell)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'High Knee Skips', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'High Knees', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'HIIT', muscle:'Cardio', measureType:'sets_timer'},
+  {name:'Hiking', muscle:'Cardio', measureType:'distance_timer'},
+  {name:'Hip Abduction (Cable)', muscle:'Abductors', measureType:'sets_reps'},
+  {name:'Hip Abduction (Machine)', muscle:'Abductors', measureType:'sets_reps'},
+  {name:'Hip Adduction (Cable)', muscle:'Adductors', measureType:'sets_reps'},
+  {name:'Hip Adduction (Machine)', muscle:'Adductors', measureType:'sets_reps'},
+  {name:'Hip Thrust', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Hip Thrust (Barbell)', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Hip Thrust (Dumbbell)', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Hip Thrust (Machine)', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Hip Thrust (Smith Machine)', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Hollow Rock', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Incline Bench Press (Barbell)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Incline Bench Press (Dumbbell)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Incline Bench Press (Smith Machine)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Incline Chest Fly (Dumbbell)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Incline Chest Press (Machine)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Incline Push Ups', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Inverted Row', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Iso-Lateral Chest Press (Machine)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Iso-Lateral High Row (Machine)', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Iso-Lateral Low Row', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Iso-Lateral Row (Machine)', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Jack Knife (Suspension)', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Jack Knife Sit Up', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'JM Press (Barbell)', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Jump Rope', muscle:'Cardio', measureType:'sets_timer'},
+  {name:'Jump Shrug', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Jump Squat', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Jumping Jack', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Jumping Lunge', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Kettlebell Around The World', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Kettlebell Clean', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Kettlebell Curl', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Kettlebell Goblet Squat', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Kettlebell Halo', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Kettlebell High Pull', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Kettlebell Shoulder Press', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Kettlebell Snatch', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Kettlebell Swing', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Kettlebell Turkish Get Up', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Kipping Pull Up', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Knee Raise Parallel Bars', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Kneeling Pulldown (Band)', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Kneeling Push Up', muscle:'Chest', measureType:'sets_reps'},
+  {name:'L-Sit Hold', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Landmine 180', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Landmine Row', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Landmine Squat And Press', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Lat Pulldown - Close Grip (Cable)', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Lat Pulldown (Band)', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Lat Pulldown (Cable)', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Lat Pulldown (Machine)', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Lateral Band Walks', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Lateral Box Jumps', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Lateral Leg Raises', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Lateral Lunge', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Lateral Raise (Band)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Lateral Raise (Cable)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Lateral Raise (Dumbbell)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Lateral Raise (Machine)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Lateral Squat', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Leg Extension (Machine)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Leg Press (Machine)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Leg Press Horizontal (Machine)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Leg Raise Parallel Bars', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Low Cable Fly Crossovers', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Low Row (Suspension)', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Lunge', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Lunge (Barbell)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Lunge (Dumbbell)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Lying Knee Raise', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Lying Leg Curl (Machine)', muscle:'Hamstrings', measureType:'sets_reps'},
+  {name:'Lying Leg Raise', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Lying Neck Curls', muscle:'Neck', measureType:'sets_reps'},
+  {name:'Lying Neck Curls (Weighted)', muscle:'Neck', measureType:'sets_reps'},
+  {name:'Lying Neck Extension', muscle:'Neck', measureType:'sets_reps'},
+  {name:'Lying Neck Extension (Weighted)', muscle:'Neck', measureType:'sets_reps'},
+  {name:'Meadows Rows (Barbell)', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Mountain Climber', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Muscle Up', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Negative Pull Up', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Nordic Hamstring Curls', muscle:'Hamstrings', measureType:'sets_reps'},
+  {name:'Oblique Crunch', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'One Arm Push Up', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Overhead Curl (Cable)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Overhead Dumbbell Lunge', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Overhead Plate Raise', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Overhead Press (Barbell)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Overhead Press (Dumbbell)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Overhead Press (Smith Machine)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Overhead Squat', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Overhead Triceps Extension (Cable)', muscle:'Trip', measureType:'sets_reps'},
+  {name:'Partial Glute Bridge (Barbell)', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Pause Squat (Barbell)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Pendlay Row (Barbell)', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Pendulum Squat (Machine)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Pike Push Up', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Pilates', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Pinwheel Curl (Dumbbell)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Pistol Squat', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Plank', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Plank Push Up', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Plate Curl', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Plate Front Raise', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Plate Press', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Plate Squeeze (Svend Press)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Power Clean', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Power Snatch', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Preacher Curl (Barbell)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Preacher Curl (Dumbbell)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Preacher Curl (Machine)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Press Under', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Pull Up', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Pull Up (Assisted)', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Pull Up (Band)', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Pull Up (Weighted)', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Pullover (Dumbbell)', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Pullover (Machine)', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Push Press', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Push Up', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Push Up - Close Grip', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Push Up (Weighted)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Rack Pull', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Rear Delt Reverse Fly (Cable)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Rear Delt Reverse Fly (Dumbbell)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Rear Delt Reverse Fly (Machine)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Rear Kick (Machine)', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Recumbent Bike', muscle:'Cardio', measureType:'distance_timer'},
+  {name:'Renegade Row (Dumbbell)', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Reverse Crunch', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Reverse Curl (Barbell)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Reverse Curl (Cable)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Reverse Curl (Dumbbell)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Reverse Fly Single Arm (Cable)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Reverse Grip Concentration Curl', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Reverse Grip Lat Pulldown (Cable)', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Reverse Grip Triceps Pushdown', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Reverse Hyperextension', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Reverse Lunge', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Reverse Lunge (Barbell)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Reverse Lunge (Dumbbell)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Reverse Plank', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Reverse Wrist Curl (Dumbbell)', muscle:'Forearms', measureType:'sets_reps'},
+  {name:'Ring Dips', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Ring Pull Up', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Ring Push Up', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Romanian Deadlift (Barbell)', muscle:'Hamstrings', measureType:'sets_reps'},
+  {name:'Romanian Deadlift (Dumbbell)', muscle:'Hamstrings', measureType:'sets_reps'},
+  {name:'Romanian Deadlift (Smith Machine)', muscle:'Hamstrings', measureType:'sets_reps'},
+  {name:'Rope Cable Curl', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Rope Straight Arm Pulldown', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Rowing Machine', muscle:'Cardio', measureType:'distance_timer'},
+  {name:'Running', muscle:'Cardio', measureType:'distance_timer'},
+  {name:'Russian Twist (Bodyweight)', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Scapular Pull Ups', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Seal Row (Barbell)', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Seal Row (Dumbbell)', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Seated Cable Row - Bar Grip', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Seated Cable Row - Bar Wide Grip', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Seated Cable Row - V Grip (Cable)', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Seated Calf Raise', muscle:'Calves', measureType:'sets_reps'},
+  {name:'Seated Chest Flys (Cable)', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Seated Dip Machine', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Seated Incline Curl (Dumbbell)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Seated Incline Hammer Curl (Dumbbell)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Seated Lateral Raise (Dumbbell)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Seated Leg Curl (Machine)', muscle:'Hamstrings', measureType:'sets_reps'},
+  {name:'Seated Overhead Press (Barbell)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Seated Overhead Press (Dumbbell)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Seated Palms Up Wrist Curl', muscle:'Forearms', measureType:'sets_reps'},
+  {name:'Seated Row (Machine)', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Seated Shoulder Press (Machine)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Seated Triceps Press', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Seated Wrist Curl (Barbell)', muscle:'Forearms', measureType:'sets_reps'},
+  {name:'Seated Wrist Extension (Barbell)', muscle:'Forearms', measureType:'sets_reps'},
+  {name:'Shoulder Press (Dumbbell)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Shoulder Press (Machine Plates)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Shoulder Taps', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Shrug (Barbell)', muscle:'Traps', measureType:'sets_reps'},
+  {name:'Shrug (Cable)', muscle:'Traps', measureType:'sets_reps'},
+  {name:'Shrug (Dumbbell)', muscle:'Traps', measureType:'sets_reps'},
+  {name:'Shrug (Machine)', muscle:'Traps', measureType:'sets_reps'},
+  {name:'Shrug (Smith Machine)', muscle:'Traps', measureType:'sets_reps'},
+  {name:'Side Bend', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Side Bend (Dumbbell)', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Side Plank', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Single Arm Cable Crossover', muscle:'Chest', measureType:'sets_reps'},
+  {name:'Single Arm Cable Row', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Single Arm Curl (Cable)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Single Arm Landmine Press (Barbell)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Single Arm Lat Pulldown', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Single Arm Lateral Raise (Cable)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Single Arm Tricep Extension (Dumbbell)', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Single Arm Tricep Pushdown (Cable)', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Single Leg Extensions', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Single Leg Glute Bridge', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Single Leg Hip Thrust (Dumbbell)', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Single Leg Press (Machine)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Single Leg Romanian Deadlift (Barbell)', muscle:'Hamstrings', measureType:'sets_reps'},
+  {name:'Single Leg Romanian Deadlift (Dumbbell)', muscle:'Hamstrings', measureType:'sets_reps'},
+  {name:'Single Leg Standing Calf Raise', muscle:'Calves', measureType:'sets_reps'},
+  {name:'Single Leg Standing Calf Raise (Barbell)', muscle:'Calves', measureType:'sets_reps'},
+  {name:'Single Leg Standing Calf Raise (Dumbbell)', muscle:'Calves', measureType:'sets_reps'},
+  {name:'Single Leg Standing Calf Raise (Machine)', muscle:'Calves', measureType:'sets_reps'},
+  {name:'Sissy Squat (Weighted)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Sit Up', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Sit Up (Weighted)', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Skating', muscle:'Cardio', measureType:'distance_timer'},
+  {name:'Ski Erg', muscle:'Cardio', measureType:'sets_timer'},
+  {name:'Skiing', muscle:'Cardio', measureType:'distance_timer'},
+  {name:'Skullcrusher (Barbell)', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Skullcrusher (Dumbbell)', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Sled Pull', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Sled Push', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Snatch', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Snowboarding', muscle:'Cardio', measureType:'distance_timer'},
+  {name:'Spider Curl (Barbell)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Spider Curl (Dumbbell)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Spiderman', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Spinning', muscle:'Cardio', measureType:'distance_timer'},
+  {name:'Split Jerk', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Split Squat (Dumbbell)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Sprints', muscle:'Cardio', measureType:'sets_timer'},
+  {name:'Squat (Band)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Squat (Barbell)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Squat (Bodyweight)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Squat (Dumbbell)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Squat (Machine)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Squat (Smith Machine)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Squat (Suspension)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Squat Row', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Stair Machine (Floors)', muscle:'Cardio', measureType:'distance_timer'},
+  {name:'Stair Machine (Steps)', muscle:'Cardio', measureType:'distance_timer'},
+  {name:'Standing Cable Glute Kickbacks', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Standing Calf Raise', muscle:'Calves', measureType:'sets_reps'},
+  {name:'Standing Calf Raise (Barbell)', muscle:'Calves', measureType:'sets_reps'},
+  {name:'Standing Calf Raise (Dumbbell)', muscle:'Calves', measureType:'sets_reps'},
+  {name:'Standing Calf Raise (Machine)', muscle:'Calves', measureType:'sets_reps'},
+  {name:'Standing Calf Raise (Smith)', muscle:'Calves', measureType:'sets_reps'},
+  {name:'Standing Leg Curls', muscle:'Hamstrings', measureType:'sets_reps'},
+  {name:'Standing Military Press (Barbell)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Standing Y Raise (Cable)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Step Up', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Sternum Pull Up (Gironda)', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Straight Arm Lat Pulldown (Cable)', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Straight Leg Deadlift', muscle:'Hamstrings', measureType:'sets_reps'},
+  {name:'Stretching', muscle:'Other', measureType:'sets_reps'},
+  {name:'Suitcase Carry (Dumbbell)', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Sumo Deadlift', muscle:'Glutes', measureType:'sets_reps'},
+  {name:'Sumo Squat', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Sumo Squat (Barbell)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Sumo Squat (Dumbbell)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Sumo Squat (Kettlebell)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Superman', muscle:'Lower Back', measureType:'sets_reps'},
+  {name:'Swimming', muscle:'Cardio', measureType:'distance_timer'},
+  {name:'T Bar Row', muscle:'Upper Back', measureType:'sets_reps'},
+  {name:'Thruster (Barbell)', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Thruster (Kettlebell)', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Toe Touch', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Toes To Bar', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Torso Rotation', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Treadmill', muscle:'Cardio', measureType:'distance_timer'},
+  {name:'Triceps Dip', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Triceps Dip (Assisted)', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Triceps Dip (Weighted)', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Triceps Extension (Barbell)', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Triceps Extension (Cable)', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Triceps Extension (Dumbbell)', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Triceps Extension (Machine)', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Triceps Extension (Suspension)', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Triceps Kickback (Cable)', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Triceps Kickback (Dumbbell)', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Triceps Pressdown', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Triceps Pushdown', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Triceps Rope Pushdown', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Upright Row (Barbell)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Upright Row (Cable)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'Upright Row (Dumbbell)', muscle:'Shoulders', measureType:'sets_reps'},
+  {name:'V Up', muscle:'Abdominals', measureType:'sets_reps'},
+  {name:'Vertical Traction (Machine)', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Waiter Curl (Dumbbell)', muscle:'Biceps', measureType:'sets_reps'},
+  {name:'Walking', muscle:'Cardio', measureType:'distance_timer'},
+  {name:'Walking Lunge', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Walking Lunge (Dumbbell)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Walking Lunge (Sandbag)', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Wall Ball', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Wall Sit', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Wide Pull Up', muscle:'Lats', measureType:'sets_reps'},
+  {name:'Wide-Elbow Triceps Press (Dumbbell)', muscle:'Triceps', measureType:'sets_reps'},
+  {name:'Wrist Roller', muscle:'Forearms', measureType:'sets_reps'},
+  {name:'Yoga', muscle:'Full Body', measureType:'sets_reps'},
+  {name:'Zercher Squat', muscle:'Quadriceps', measureType:'sets_reps'},
+  {name:'Zottman Curl (Dumbbell)', muscle:'Biceps', measureType:'sets_reps'},
+];
+
+const EXERCISE_DB_VERSION = 1;
+
 const LEGACY_TYPE_META = {
   chest: {label:"Chest"},
   legs:  {label:"Legs"},
@@ -911,12 +1435,54 @@ function migrateTemplates(data){
   return data;
 }
 
+/* Rebases the exercise list onto EXERCISE_DATABASE (the canonical,
+   muscle-tagged list). Matches existing exercises to canonical entries by
+   normalized name so past workouts/templates keep pointing at the right
+   exercise (remapped by id) instead of losing history. Any existing
+   exercise that doesn't match a canonical name (a custom lift the user
+   added themselves) is kept, appended after the canonical list, so it
+   isn't silently dropped. Runs once per install, gated by
+   EXERCISE_DB_VERSION so it doesn't re-run (and re-shuffle ids) every load. */
+function normalizeExName(name){ return (name||"").trim().toLowerCase().replace(/\s+/g," "); }
+function migrateToExerciseDatabase(data){
+  if(data.exerciseDbVersion === EXERCISE_DB_VERSION) return data;
+  const existing = data.exercises || [];
+  const idRemap = {}; // old id -> canonical id
+  const canonicalByName = new Map();
+  const canonical = EXERCISE_DATABASE.map(def => {
+    const ex = {id: uid(), name: def.name, increment: 5, muscle: def.muscle, measureType: def.measureType};
+    canonicalByName.set(normalizeExName(def.name), ex);
+    return ex;
+  });
+  const leftovers = [];
+  existing.forEach(old => {
+    const match = canonicalByName.get(normalizeExName(old.name));
+    if(match){
+      idRemap[old.id] = match.id;
+      if(old.increment) match.increment = old.increment; // preserve any custom increment
+    }else{
+      idRemap[old.id] = old.id; // unmatched — keep its own id, carry it forward as-is
+      leftovers.push({id: old.id, name: old.name, increment: old.increment || 5, muscle: old.muscle || "", measureType: old.measureType || "sets_reps"});
+    }
+  });
+  (data.workouts || []).forEach(w=>{
+    (w.entries || []).forEach(e=>{ if(idRemap[e.exId]) e.exId = idRemap[e.exId]; });
+  });
+  (data.templates || []).forEach(t=>{
+    t.exerciseIds = (t.exerciseIds || []).map(id => idRemap[id] || id);
+  });
+  data.exercises = canonical.concat(leftovers);
+  data.exerciseDbVersion = EXERCISE_DB_VERSION;
+  saveData(data);
+  return data;
+}
+
 function loadData(){
   let raw = localStorage.getItem(STORAGE_KEY);
   if(raw){
-    try{ return migrateExerciseData(JSON.parse(raw)); }catch(e){}
+    try{ return migrateToExerciseDatabase(migrateExerciseData(JSON.parse(raw))); }catch(e){}
   }
-  const data = { exercises: DEFAULT_EXERCISES.map(name => ({id:uid(), name, increment:5})), workouts:[], templates:[] };
+  const data = { exercises: EXERCISE_DATABASE.map(def => ({id:uid(), name:def.name, increment:5, muscle:def.muscle, measureType:def.measureType})), workouts:[], templates:[], exerciseDbVersion: EXERCISE_DB_VERSION };
   saveData(data);
   return data;
 }
@@ -965,8 +1531,8 @@ function recordBackupDone(){
 /* ---- Exercises & Templates (CRUD over the global exercise/template lists) ---- */
 function getExercises(){ return [...DATA.exercises].sort((a,b)=> a.name.localeCompare(b.name)); }
 function findExercise(id){ return DATA.exercises.find(e=>e.id===id) || null; }
-function addExercise(name, increment){
-  const ex = {id:uid(), name:name.trim(), increment: increment || 5};
+function addExercise(name, increment, muscle, measureType){
+  const ex = {id:uid(), name:name.trim(), increment: increment || 5, muscle: muscle || "", measureType: measureType || "sets_reps"};
   DATA.exercises.push(ex);
   saveData(DATA);
   return ex;
@@ -1005,19 +1571,19 @@ const STATUS_LABEL = {
   red:{text:"Below range — reduce weight next time", short:"Decrease"}
 };
 
-function upsertWorkout(existingId, type, dateStr, entries){
+function upsertWorkout(existingId, type, dateStr, entries, stretches){
   const allFilled = entries.every(en => en.sets.every(s => s.done && s.reps !== null));
   const status = allFilled ? "completed" : "planned";
   const iso = new Date(dateStr + "T12:00:00").toISOString();
   if(existingId){
     const w = DATA.workouts.find(w=>w.id===existingId);
     if(w){
-      w.type = type; w.date = iso; w.entries = entries; w.status = status;
+      w.type = type; w.date = iso; w.entries = entries; w.status = status; w.stretches = stretches || [];
       saveData(DATA);
       return w;
     }
   }
-  const w = { id:uid(), date:iso, type, entries, status };
+  const w = { id:uid(), date:iso, type, entries, status, stretches: stretches || [] };
   DATA.workouts.push(w);
   saveData(DATA);
   return w;
@@ -1192,7 +1758,17 @@ let stretchPausedAt = null;  // Date.now() when paused/stopped; null while activ
 let stretchPhase = "idle";
 let stretchStopView = "confirm"; // while stopped: 'confirm' (Save/Edit choice) or 'edit' (H/M/S picker)
 let stretchMode = "stopwatch"; // 'stopwatch' | 'countdown' | 'intervals' — only stopwatch is functional today
-let stretchEditH = 0, stretchEditM = 0, stretchEditS = 0; // scratch values while editing the recorded time
+let stretchEditH = 0, stretchEditM = 0, stretchEditS = 0; // scratch values while editing the recorded time (also reused for the countdown-duration picker)
+let stretchCountdownTotal = 60; // seconds — the target duration chosen for Countdown mode
+// Saved stretch "sets" for this session — e.g. one before the workout, one
+// after. Each is {id, seconds, done}. The live stretchPhase/stretchStartTime
+// machinery above always represents at most one in-progress (unsaved) timer;
+// finishing it appends a new entry here (or updates one, if re-editing).
+let sessionStretches = [];
+let editingStretchId = null; // null = the in-progress timer will add a NEW entry; otherwise the id of the existing entry being corrected
+let stretchIntervals = []; // [{id, seconds}] configured Intervals-mode durations, run back-to-back
+let stretchLoops = 1; // how many times to repeat the whole interval sequence; 0 = infinite
+let stretchIntervalEditingId = null; // non-null while editing one interval's duration in the setup list
 let stretchTimerInterval = null;
 
 // Exercise cards whose all-sets-complete state has been manually expanded
@@ -1211,7 +1787,8 @@ function persistActiveSession(){
       type: sessionType, date: sessionDate, editingWorkoutId,
       startTime: sessionStartTime, entries: sessionEntries,
       pausedAt: sessionPausedAt,
-      stretchStartTime, stretchPausedAt, stretchPhase, stretchMode,
+      stretchStartTime, stretchPausedAt, stretchPhase, stretchMode, stretchCountdownTotal,
+      sessionStretches, stretchIntervals, stretchLoops,
       expanded: Array.from(expandedOverrides)
     }));
   }catch(e){}
@@ -1234,19 +1811,39 @@ function restoreActiveSessionIfAny(){
     stretchStartTime = s.stretchStartTime ?? null;
     stretchPausedAt = s.stretchPausedAt ?? null;
     stretchMode = s.stretchMode || "stopwatch";
-    if(s.stretchPhase){
-      stretchPhase = s.stretchPhase;
+    stretchCountdownTotal = s.stretchCountdownTotal || 60;
+    stretchIntervals = s.stretchIntervals || [];
+    stretchLoops = s.stretchLoops ?? 1;
+    stretchIntervalEditingId = null;
+    editingStretchId = null; // never resume mid-re-edit across a reload
+    if(s.sessionStretches !== undefined){
+      sessionStretches = s.sessionStretches || [];
+      stretchPhase = s.stretchPhase || "idle";
     }else if(s.stretchDuration !== undefined && s.stretchDuration !== null && !s.stretchDone){
       // Legacy shape (pre-Start/Stop redesign): a completed stretch stored
-      // only a final duration. Convert it into the finalized "done" phase.
-      stretchPhase = "done";
-      stretchPausedAt = Date.now();
-      stretchStartTime = Date.now() - (s.stretchDuration * 1000);
+      // only a final duration. Convert it into a saved stretch-set entry.
+      sessionStretches = [{ id: uid(), seconds: s.stretchDuration, done: true }];
+      stretchPhase = "idle";
+      stretchStartTime = null;
+      stretchPausedAt = null;
     }else if(s.stretchDone !== undefined){
-      // Legacy shape (pre-Start/Stop redesign, post-pause-button): map the
-      // old boolean straight onto the new phase model.
-      stretchPhase = s.stretchDone ? "done" : (stretchStartTime === null ? "idle" : (stretchPausedAt !== null ? "paused" : "running"));
+      if(s.stretchDone){
+        // Legacy shape (pre-multi-entry redesign): a single finished stretch.
+        // Convert it into a saved stretch-set entry.
+        const seconds = stretchStartTime !== null
+          ? Math.max(0, Math.floor(((stretchPausedAt ?? Date.now()) - stretchStartTime)/1000))
+          : 0;
+        sessionStretches = [{ id: uid(), seconds, done: true }];
+        stretchPhase = "idle";
+        stretchStartTime = null;
+        stretchPausedAt = null;
+      }else{
+        // Was actively running/paused and not yet saved — keep it live.
+        sessionStretches = [];
+        stretchPhase = stretchStartTime === null ? "idle" : (stretchPausedAt !== null ? "paused" : "running");
+      }
     }else{
+      sessionStretches = [];
       stretchPhase = stretchStartTime === null ? "idle" : "running";
     }
     stretchStopView = "confirm";
@@ -1479,6 +2076,8 @@ function startLog(templateId){
   stretchPausedAt = null;
   stretchPhase = "idle";
   stretchStopView = "confirm";
+  sessionStretches = [];
+  editingStretchId = null;
   expandedOverrides = new Set();
   persistActiveSession();
   nav({name:"log"});
@@ -1517,6 +2116,8 @@ function beginPlan(templateId){
   stretchPausedAt = null;
   stretchPhase = "idle";
   stretchStopView = "confirm";
+  sessionStretches = [];
+  editingStretchId = null;
   expandedOverrides = new Set();
   persistActiveSession();
   closeModal();
@@ -1534,6 +2135,8 @@ function continuePlanned(workoutId){
   stretchPausedAt = null;
   stretchPhase = "idle";
   stretchStopView = "confirm";
+  sessionStretches = (w.stretches || []).map(s => ({...s}));
+  editingStretchId = null;
   expandedOverrides = new Set();
   const withDone = s => ({...s, done: s.done !== undefined ? s.done : (s.reps !== null && s.reps !== undefined)});
   sessionEntries = w.entries.map(e => ({
@@ -1632,6 +2235,7 @@ function viewLog(){
           </div>
           <div style="flex:1; min-width:0;">
             <div class="ex-name">${entry.name}</div>
+            ${muscleTag(findExercise(entry.exId))}
             <div class="ex-hint">${hint}</div>
           </div>
           <div style="display:flex; align-items:center; gap:2px; flex-shrink:0;">
@@ -1680,7 +2284,7 @@ function viewLog(){
         </div>
       ` : ""}
     </div>
-    ${isFuturePlan() ? "" : renderStretchRow()}
+    ${isFuturePlan() ? "" : renderStretchSection()}
     ${cards || `<div class="empty-state" style="margin:0 20px;">Add an exercise below to start this session.</div>`}
     <div class="add-exercise-btn" onclick="openExercisePicker()">+ Add Exercise</div>
     <div style="padding:0 20px;">
@@ -1705,19 +2309,86 @@ function stretchElapsedSeconds(){
   const end = stretchPausedAt !== null ? stretchPausedAt : Date.now();
   return Math.max(0, Math.floor((end - stretchStartTime)/1000));
 }
-function renderStretchRow(){
-  if(stretchPhase === "idle"){
-    return `<div class="stretch-row stretch-add" onclick="startStretch()">+ Add Stretch</div>`;
+// Purely derived from total elapsed time + the configured intervals/loops —
+// no separate mutable "which interval are we on" state to keep in sync.
+// Returns {done:true} once every loop has finished, otherwise
+// {loopIdx, intervalIdx, remainingInInterval, intervalDuration}.
+function computeIntervalPosition(elapsed){
+  const perLoop = stretchIntervals.reduce((sum, iv) => sum + iv.seconds, 0);
+  if(perLoop <= 0) return {done:true};
+  let loopIdx = 0, remainderInLoop = elapsed;
+  if(stretchLoops > 0){
+    const totalSeconds = perLoop * stretchLoops;
+    if(elapsed >= totalSeconds) return {done:true};
+    loopIdx = Math.floor(elapsed / perLoop);
+    remainderInLoop = elapsed - loopIdx*perLoop;
+  }else{
+    loopIdx = Math.floor(elapsed / perLoop);
+    remainderInLoop = elapsed % perLoop;
   }
-  const label = stretchPhase === "done" ? "Stretched" : (stretchPhase === "paused" || stretchPhase === "stopped" ? "Paused" : "Stretching");
+  let acc = 0;
+  for(let i=0; i<stretchIntervals.length; i++){
+    const dur = stretchIntervals[i].seconds;
+    if(remainderInLoop < acc + dur){
+      return {done:false, loopIdx, intervalIdx:i, remainingInInterval: dur-(remainderInLoop-acc), intervalDuration:dur};
+    }
+    acc += dur;
+  }
+  const last = stretchIntervals[stretchIntervals.length-1];
+  return {done:false, loopIdx, intervalIdx: stretchIntervals.length-1, remainingInInterval:0, intervalDuration:last.seconds};
+}
+// What the ring/digits should actually display: elapsed time for the
+// stopwatch, but remaining time for an active/paused countdown or interval.
+// The underlying elapsed clock (stretchStartTime/stretchPausedAt) is the
+// same either way — this only affects what's shown and saved as "Total
+// time" (always the real elapsed work time, not the original target).
+function stretchDisplaySeconds(){
+  if(stretchMode === "countdown" && (stretchPhase === "running" || stretchPhase === "paused")){
+    return Math.max(0, stretchCountdownTotal - stretchElapsedSeconds());
+  }
+  if(stretchMode === "intervals" && (stretchPhase === "running" || stretchPhase === "paused")){
+    const pos = computeIntervalPosition(stretchElapsedSeconds());
+    return pos.done ? 0 : pos.remainingInInterval;
+  }
+  return stretchElapsedSeconds();
+}
+function renderStretchSection(){
+  const savedRows = sessionStretches.map(s => `
+    <div class="set-row">
+      <div class="set-badge warmup">S</div>
+      <div class="stretch-set-time" onclick="reopenStretchEntry('${s.id}')">${fmtDuration(s.seconds)}</div>
+      <label class="set-check" aria-label="Mark stretch set complete">
+        <input type="checkbox" ${s.done ? "checked" : ""} onchange="toggleStretchEntryDone('${s.id}', this.checked)">
+        <span class="set-check-box"></span>
+      </label>
+      <button class="set-line-remove" onclick="removeStretchEntry('${s.id}')" aria-label="Remove stretch set">✕</button>
+    </div>
+  `).join("");
+  let bottomHtml;
+  if(stretchPhase !== "idle"){
+    const label = stretchPhase === "running" ? "Stretching" : "Paused";
+    bottomHtml = `
+      <div class="stretch-row" onclick="openStretchTimerModal()">
+        <div class="stretch-label">${label}</div>
+        <div class="stretch-timer" id="stretchTimer">${fmtDuration(stretchDisplaySeconds())}</div>
+        <span class="collapsed-chev">${ICONS.chevronDown}</span>
+      </div>`;
+  }else{
+    bottomHtml = `<div class="stretch-row stretch-add" onclick="startStretch()">+ Add Stretch</div>`;
+  }
   return `
-    <div class="stretch-row" onclick="openStretchTimerModal()">
-      <div class="stretch-label">${label}</div>
-      <div class="stretch-timer" id="stretchTimer">${fmtDuration(stretchElapsedSeconds())}</div>
-      ${stretchPhase === "done" ? `<span class="stretch-done-check">${ICONS.chevronDown}</span>` : `<span class="collapsed-chev">${ICONS.chevronDown}</span>`}
-    </div>`;
+    ${savedRows ? `<div class="set-table stretch-set-table">${savedRows}</div>` : ""}
+    ${bottomHtml}
+  `;
 }
 function startStretch(){
+  if(stretchPhase !== "idle"){
+    // Already mid-timer on an unsaved stretch — reopen it rather than
+    // silently resetting and losing that progress.
+    openStretchTimerModal();
+    return;
+  }
+  editingStretchId = null;
   stretchStartTime = null;
   stretchPausedAt = null;
   stretchPhase = "idle";
@@ -1726,11 +2397,47 @@ function startStretch(){
   render();
   openStretchTimerModal();
 }
+function reopenStretchEntry(id){
+  const entry = sessionStretches.find(s => s.id === id);
+  if(!entry) return;
+  editingStretchId = id;
+  stretchEditH = Math.floor(entry.seconds/3600);
+  stretchEditM = Math.floor((entry.seconds%3600)/60);
+  stretchEditS = entry.seconds%60;
+  stretchPhase = "stopped";
+  stretchStopView = "edit";
+  openStretchTimerModal();
+}
+function toggleStretchEntryDone(id, checked){
+  const entry = sessionStretches.find(s => s.id === id);
+  if(!entry) return;
+  entry.done = checked;
+  persistActiveSession();
+  render();
+}
+function removeStretchEntry(id){
+  sessionStretches = sessionStretches.filter(s => s.id !== id);
+  persistActiveSession();
+  render();
+}
 function beginStretchRun(){
-  if(stretchMode !== "stopwatch"){
-    showToast(`${stretchMode === "countdown" ? "Countdown" : "Intervals"} timers are coming soon`);
+  // Only reachable for Stopwatch mode — Countdown and Intervals each show
+  // their own setup screen (with their own Start handler) while idle.
+  stretchStartTime = Date.now();
+  stretchPausedAt = null;
+  stretchPhase = "running";
+  persistActiveSession();
+  startStretchTimer();
+  render();
+  refreshStretchSheet();
+}
+function beginCountdownRun(){
+  const total = stretchEditH*3600 + stretchEditM*60 + stretchEditS;
+  if(total <= 0){
+    showToast("Set a countdown duration first");
     return;
   }
+  stretchCountdownTotal = total;
   stretchStartTime = Date.now();
   stretchPausedAt = null;
   stretchPhase = "running";
@@ -1774,12 +2481,28 @@ function cancelStretchStop(){
   render();
   refreshStretchSheet();
 }
-function confirmSaveStretchTime(){
-  stretchPhase = "done";
+// Finalizes the in-progress timer into sessionStretches — either appending a
+// brand-new stretch set, or (if re-editing an existing one via a saved row)
+// updating that entry's recorded duration in place.
+function finalizeStretchEntry(seconds){
+  if(editingStretchId){
+    const entry = sessionStretches.find(s => s.id === editingStretchId);
+    if(entry) entry.seconds = seconds;
+  }else{
+    sessionStretches.push({ id: uid(), seconds, done: true });
+  }
+  editingStretchId = null;
+  stretchPhase = "idle";
+  stretchStartTime = null;
+  stretchPausedAt = null;
+  stretchStopView = "confirm";
   persistActiveSession();
   render();
   closeModal();
   showToast("Stretch saved");
+}
+function confirmSaveStretchTime(){
+  finalizeStretchEntry(stretchElapsedSeconds());
 }
 function openEditStretchTimeModal(){
   const total = stretchElapsedSeconds();
@@ -1790,31 +2513,84 @@ function openEditStretchTimeModal(){
   refreshStretchSheet();
 }
 function backToStretchStopConfirm(){
+  if(editingStretchId){
+    // Reached the edit screen by tapping an already-saved row — dismiss
+    // without changes rather than showing the fresh-stop Save/Edit choice.
+    editingStretchId = null;
+    stretchPhase = "idle";
+    stretchStopView = "confirm";
+    closeModal();
+    return;
+  }
   stretchStopView = "confirm";
   refreshStretchSheet();
 }
 function confirmEditStretchTime(){
-  const total = Math.max(0, stretchEditH*3600 + stretchEditM*60 + stretchEditS);
-  const now = Date.now();
-  stretchStartTime = now - total*1000;
-  stretchPausedAt = now;
-  stretchPhase = "done";
-  persistActiveSession();
-  render();
-  closeModal();
-  showToast("Stretch saved");
+  finalizeStretchEntry(Math.max(0, stretchEditH*3600 + stretchEditM*60 + stretchEditS));
 }
 function setStretchMode(mode){
+  if(stretchPhase === "running" || stretchPhase === "paused"){
+    showToast("Stop the current timer first");
+    return;
+  }
   stretchMode = mode;
+  stretchIntervalEditingId = null;
+  if(mode === "countdown"){
+    stretchEditH = Math.floor(stretchCountdownTotal/3600);
+    stretchEditM = Math.floor((stretchCountdownTotal%3600)/60);
+    stretchEditS = stretchCountdownTotal%60;
+  }
+  persistActiveSession();
   refreshStretchSheet();
 }
 function updateStretchDisplay(){
   if(stretchPhase !== "running") return;
-  const txt = fmtDuration(stretchElapsedSeconds());
+  const txt = fmtDuration(stretchDisplaySeconds());
   const el1 = document.getElementById("stretchTimer");
   if(el1) el1.textContent = txt;
   const el2 = document.getElementById("stretchTimerBig");
   if(el2) el2.textContent = txt;
+  if(stretchMode === "countdown"){
+    const prog = document.querySelector(".timer-ring-progress");
+    if(prog){
+      const r = Number(prog.getAttribute("r")) || 68;
+      const circumference = 2*Math.PI*r;
+      const remaining = Math.max(0, stretchCountdownTotal - stretchElapsedSeconds());
+      const fraction = stretchCountdownTotal > 0 ? remaining/stretchCountdownTotal : 0;
+      prog.setAttribute("stroke-dashoffset", circumference*(1-fraction));
+    }
+    if(stretchElapsedSeconds() >= stretchCountdownTotal){
+      // Countdown reached zero on its own — same Save/Edit confirmation as a manual Stop.
+      stopStretchTimer();
+      stretchPausedAt = stretchStartTime + stretchCountdownTotal*1000;
+      stretchPhase = "stopped";
+      stretchStopView = "confirm";
+      persistActiveSession();
+      render();
+      refreshStretchSheet();
+    }
+  }else if(stretchMode === "intervals"){
+    const pos = computeIntervalPosition(stretchElapsedSeconds());
+    if(pos.done){
+      // Every interval of every loop has finished — same Save/Edit
+      // confirmation as a manual Stop.
+      stopStretchTimer();
+      stretchPausedAt = Date.now();
+      stretchPhase = "stopped";
+      stretchStopView = "confirm";
+      persistActiveSession();
+      render();
+      refreshStretchSheet();
+      return;
+    }
+    const prog = document.querySelector(".timer-ring-progress");
+    if(prog){
+      const r = Number(prog.getAttribute("r")) || 68;
+      const circumference = 2*Math.PI*r;
+      const fraction = pos.intervalDuration > 0 ? pos.remainingInInterval/pos.intervalDuration : 0;
+      prog.setAttribute("stroke-dashoffset", circumference*(1-fraction));
+    }
+  }
 }
 function startStretchTimer(){
   stopStretchTimer();
@@ -1843,7 +2619,181 @@ function renderStretchModeTabs(){
     </div>
   `;
 }
+function renderTimerRingSvg(){
+  const running = stretchPhase === "running";
+  const r = 68, circumference = 2*Math.PI*r;
+  let fraction = 1;
+  if(stretchMode === "countdown"){
+    const remaining = Math.max(0, stretchCountdownTotal - stretchElapsedSeconds());
+    fraction = stretchCountdownTotal > 0 ? remaining/stretchCountdownTotal : 0;
+  }else if(stretchMode === "intervals"){
+    const pos = computeIntervalPosition(stretchElapsedSeconds());
+    fraction = (!pos.done && pos.intervalDuration > 0) ? pos.remainingInInterval/pos.intervalDuration : 0;
+  }
+  const offset = circumference * (1 - fraction);
+  return `
+    <div class="timer-ring-wrap">
+      <svg class="timer-ring-svg" viewBox="0 0 150 150">
+        <circle class="timer-ring-track" cx="75" cy="75" r="${r}"></circle>
+        <circle class="timer-ring-progress ${running ? "is-pulsing" : ""}" cx="75" cy="75" r="${r}"
+          stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"></circle>
+      </svg>
+      <div class="timer-ring-time" id="stretchTimerBig">${fmtDuration(stretchDisplaySeconds())}</div>
+    </div>
+  `;
+}
+function renderCountdownSetupBody(){
+  return `
+    <div class="timer-topbar">
+      <button class="timer-topbar-close" onclick="closeModal()" aria-label="Close">${ICONS.back}</button>
+      <div class="timer-topbar-title">Stretch Timer</div>
+      <div class="timer-topbar-spacer"></div>
+    </div>
+    <div class="hms-row" style="margin:40px 0 32px;">
+      <div class="hms-field">
+        <input type="text" inputmode="none" autocomplete="off" class="hms-input" id="editHoursInput" value="${stretchEditH}"
+          onfocus="focusNumField(0, '', 0, 'stretchH', this)" onblur="blurNumField()"
+          oninput="handleNumFieldTyped(this, 0, '', 0, 'stretchH')">
+        <label>hours</label>
+      </div>
+      <div class="hms-field">
+        <input type="text" inputmode="none" autocomplete="off" class="hms-input" id="editMinutesInput" value="${stretchEditM}"
+          onfocus="focusNumField(0, '', 0, 'stretchM', this)" onblur="blurNumField()"
+          oninput="handleNumFieldTyped(this, 0, '', 0, 'stretchM')">
+        <label>minutes</label>
+      </div>
+      <div class="hms-field">
+        <input type="text" inputmode="none" autocomplete="off" class="hms-input" id="editSecondsInput" value="${stretchEditS}"
+          onfocus="focusNumField(0, '', 0, 'stretchS', this)" onblur="blurNumField()"
+          oninput="handleNumFieldTyped(this, 0, '', 0, 'stretchS')">
+        <label>seconds</label>
+      </div>
+    </div>
+    <div class="timer-actions">
+      <button class="timer-action-btn" onclick="beginCountdownRun()">${ICONS.play} Start</button>
+    </div>
+    ${renderStretchModeTabs()}
+  `;
+}
+function renderIntervalEditBody(){
+  return `
+    <div class="timer-topbar">
+      <button class="timer-topbar-close" onclick="closeModal()" aria-label="Close">${ICONS.back}</button>
+      <div class="timer-topbar-title">Stretch Timer</div>
+      <div class="timer-topbar-spacer"></div>
+    </div>
+    <div class="sheet-title" style="margin-top:20px;">Edit Interval</div>
+    <div class="hms-row">
+      <div class="hms-field">
+        <input type="text" inputmode="none" autocomplete="off" class="hms-input" id="editHoursInput" value="${stretchEditH}"
+          onfocus="focusNumField(0, '', 0, 'stretchH', this)" onblur="blurNumField()"
+          oninput="handleNumFieldTyped(this, 0, '', 0, 'stretchH')">
+        <label>hours</label>
+      </div>
+      <div class="hms-field">
+        <input type="text" inputmode="none" autocomplete="off" class="hms-input" id="editMinutesInput" value="${stretchEditM}"
+          onfocus="focusNumField(0, '', 0, 'stretchM', this)" onblur="blurNumField()"
+          oninput="handleNumFieldTyped(this, 0, '', 0, 'stretchM')">
+        <label>minutes</label>
+      </div>
+      <div class="hms-field">
+        <input type="text" inputmode="none" autocomplete="off" class="hms-input" id="editSecondsInput" value="${stretchEditS}"
+          onfocus="focusNumField(0, '', 0, 'stretchS', this)" onblur="blurNumField()"
+          oninput="handleNumFieldTyped(this, 0, '', 0, 'stretchS')">
+        <label>seconds</label>
+      </div>
+    </div>
+    <div class="confirm-actions">
+      <button class="confirm-btn" onclick="cancelIntervalEdit()">Close</button>
+      <button class="confirm-btn confirm-btn-accent" onclick="confirmIntervalEdit()">OK</button>
+    </div>
+  `;
+}
+function renderIntervalsSetupBody(){
+  if(stretchIntervalEditingId !== null){
+    return renderIntervalEditBody();
+  }
+  const rows = stretchIntervals.map(iv => `
+    <div class="interval-row">
+      <div class="interval-time" onclick="editIntervalDuration('${iv.id}')">${fmtDuration(iv.seconds)}</div>
+      <button class="interval-remove" onclick="removeInterval('${iv.id}')" aria-label="Remove interval">${ICONS.trash}</button>
+    </div>
+  `).join("");
+  return `
+    <div class="timer-topbar">
+      <button class="timer-topbar-close" onclick="closeModal()" aria-label="Close">${ICONS.back}</button>
+      <div class="timer-topbar-title">Stretch Timer</div>
+      <div class="timer-topbar-spacer"></div>
+    </div>
+    <div class="intervals-setup" style="margin-top:24px;">
+      ${stretchIntervals.length ? `<div class="intervals-list-label">Intervals</div>${rows}` : ""}
+      <button class="add-interval-btn" onclick="addInterval()">Add Interval</button>
+      <div class="loops-row">
+        <div>
+          <div class="loops-label">Loops</div>
+          <div class="loops-sublabel">0 = Infinite</div>
+        </div>
+        <input type="text" inputmode="none" autocomplete="off" class="loops-input" id="loopsInput" value="${stretchLoops}"
+          onfocus="focusNumField(0, '', 0, 'stretchLoops', this)" onblur="blurNumField()"
+          oninput="handleNumFieldTyped(this, 0, '', 0, 'stretchLoops')">
+      </div>
+    </div>
+    <div class="timer-actions">
+      <button class="timer-action-btn" onclick="beginIntervalsRun()">${ICONS.play} Start</button>
+    </div>
+    ${renderStretchModeTabs()}
+  `;
+}
+function addInterval(){
+  stretchIntervals.push({ id: uid(), seconds: 60 });
+  persistActiveSession();
+  refreshStretchSheet();
+}
+function removeInterval(id){
+  stretchIntervals = stretchIntervals.filter(iv => iv.id !== id);
+  persistActiveSession();
+  refreshStretchSheet();
+}
+function editIntervalDuration(id){
+  const iv = stretchIntervals.find(x => x.id === id);
+  if(!iv) return;
+  stretchIntervalEditingId = id;
+  stretchEditH = Math.floor(iv.seconds/3600);
+  stretchEditM = Math.floor((iv.seconds%3600)/60);
+  stretchEditS = iv.seconds%60;
+  refreshStretchSheet();
+}
+function confirmIntervalEdit(){
+  const iv = stretchIntervals.find(x => x.id === stretchIntervalEditingId);
+  if(iv) iv.seconds = Math.max(1, stretchEditH*3600 + stretchEditM*60 + stretchEditS);
+  stretchIntervalEditingId = null;
+  persistActiveSession();
+  refreshStretchSheet();
+}
+function cancelIntervalEdit(){
+  stretchIntervalEditingId = null;
+  refreshStretchSheet();
+}
+function beginIntervalsRun(){
+  if(!stretchIntervals.length || stretchIntervals.some(iv => iv.seconds <= 0)){
+    showToast("Please enter a valid interval");
+    return;
+  }
+  stretchStartTime = Date.now();
+  stretchPausedAt = null;
+  stretchPhase = "running";
+  persistActiveSession();
+  startStretchTimer();
+  render();
+  refreshStretchSheet();
+}
 function renderStretchMainBody(){
+  if(stretchMode === "countdown" && stretchPhase === "idle"){
+    return renderCountdownSetupBody();
+  }
+  if(stretchMode === "intervals" && stretchPhase === "idle"){
+    return renderIntervalsSetupBody();
+  }
   const running = stretchPhase === "running";
   const paused = stretchPhase === "paused";
   let actionsHtml = "";
@@ -1870,10 +2820,7 @@ function renderStretchMainBody(){
       <div class="timer-topbar-title">Stretch Timer</div>
       <div class="timer-topbar-spacer"></div>
     </div>
-    <div class="timer-ring-wrap">
-      <div class="timer-ring ${running ? "is-pulsing" : ""}"></div>
-      <div class="timer-ring-time" id="stretchTimerBig">${fmtDuration(stretchElapsedSeconds())}</div>
-    </div>
+    ${renderTimerRingSvg()}
     ${actionsHtml}
     ${renderStretchModeTabs()}
   `;
@@ -2017,6 +2964,7 @@ function numFieldElId(idx, group, si, kind){
   if(kind === "stretchH") return "editHoursInput";
   if(kind === "stretchM") return "editMinutesInput";
   if(kind === "stretchS") return "editSecondsInput";
+  if(kind === "stretchLoops") return "loopsInput";
   return kind === "weight" ? `weight-input-${group}-${idx}-${si}` : `reps-input-${group}-${idx}-${si}`;
 }
 function focusNumField(idx, group, si, kind, el){
@@ -2030,7 +2978,7 @@ function blurNumField(){
   // keep focus on the field) has already run before we consider hiding it.
   setTimeout(()=>{
     if(document.activeElement && document.activeElement.classList &&
-       (document.activeElement.classList.contains("mini-weight-input") || document.activeElement.classList.contains("mini-reps-input") || document.activeElement.classList.contains("hms-input"))){
+       (document.activeElement.classList.contains("mini-weight-input") || document.activeElement.classList.contains("mini-reps-input") || document.activeElement.classList.contains("hms-input") || document.activeElement.classList.contains("loops-input"))){
       return; // focus moved straight to another numeric field — keep the keypad open
     }
     hideNumKeypad();
@@ -2041,7 +2989,7 @@ function showNumKeypad(kind){
   if(!bar) return;
   bar.classList.add("visible");
   const label = document.getElementById("numKeypadLabel");
-  const labelMap = {weight:"Weight", reps:"Reps", stretchH:"Hours", stretchM:"Minutes", stretchS:"Seconds"};
+  const labelMap = {weight:"Weight", reps:"Reps", stretchH:"Hours", stretchM:"Minutes", stretchS:"Seconds", stretchLoops:"Loops"};
   if(label) label.textContent = labelMap[kind] || "";
   const dot = document.getElementById("numKeypadDot");
   if(dot) dot.style.visibility = kind === "weight" ? "visible" : "hidden";
@@ -2056,6 +3004,10 @@ function setStretchEditField(kind, val){
   if(kind === "stretchH") stretchEditH = n;
   else if(kind === "stretchM") stretchEditM = n;
   else if(kind === "stretchS") stretchEditS = n;
+  else if(kind === "stretchLoops"){
+    stretchLoops = n;
+    persistActiveSession();
+  }
 }
 function numKeypadPress(ch){
   if(!activeNumField) return;
@@ -2174,6 +3126,7 @@ function openExercisePicker(target){
             <div class="pick-row" data-name="${escapeHtml(ex.name.toLowerCase())}" onclick="pickExercise('${ex.id}')">
               <div>
                 <div class="pn">${ex.name}</div>
+                ${muscleTag(ex)}
                 <div class="pd">±${ex.increment} lbs increment</div>
               </div>
               <span class="chev">›</span>
@@ -2285,7 +3238,7 @@ function saveSession(){
     const status = filled ? computeStatus(setsClean.map(s=>s.reps)) : null;
     return { exId:e.exId, name:e.name, warmups:warmupsClean, sets:setsClean, volume, status };
   });
-  const w = upsertWorkout(editingWorkoutId, sessionType, sessionDate, entries);
+  const w = upsertWorkout(editingWorkoutId, sessionType, sessionDate, entries, sessionStretches);
   const completed = workoutStatus(w) === "completed";
   if(completed && sessionStartTime && !isFuturePlan()){
     const now = sessionPausedAt || Date.now();
@@ -2301,6 +3254,8 @@ function saveSession(){
   stretchPausedAt = null;
   stretchPhase = "idle";
   stretchStopView = "confirm";
+  sessionStretches = [];
+  editingStretchId = null;
   expandedOverrides = new Set();
   stopSessionTimer();
   stopStretchTimer();
@@ -2329,6 +3284,8 @@ function discardWorkout(){
     stretchPausedAt = null;
     stretchPhase = "idle";
   stretchStopView = "confirm";
+    sessionStretches = [];
+    editingStretchId = null;
     expandedOverrides = new Set();
     stopSessionTimer();
     stopStretchTimer();
@@ -2392,7 +3349,7 @@ function viewTemplateEdit(){
     if(!ex) return "";
     return `
       <div class="ex-row" style="cursor:default;">
-        <div><div class="en">${escapeHtml(ex.name)}</div></div>
+        <div><div class="en">${escapeHtml(ex.name)}</div>${muscleTag(ex)}</div>
         <button class="pick-del" onclick="removeExerciseFromDraft('${exId}')">Remove</button>
       </div>`;
   }).join("");
@@ -2710,6 +3667,7 @@ function viewManage(){
       <div class="ex-row" style="cursor:default;">
         <div>
           <div class="en">${ex.name}</div>
+          ${muscleTag(ex)}
           <div class="es">±${ex.increment} lbs increment</div>
         </div>
         <div style="display:flex; align-items:center; gap:4px; flex-shrink:0;">
@@ -2757,6 +3715,9 @@ function removeExercise(id){
     deleteExercise(id);
     render();
   });
+}
+function muscleTag(ex){
+  return ex && ex.muscle ? `<div class="muscle-tag">${escapeHtml(ex.muscle)}</div>` : "";
 }
 function escapeHtml(str){
   return String(str).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
@@ -2838,7 +3799,7 @@ function importDataFile(input){
       return;
     }
     if(!confirm("Import this backup? This will replace all exercises and workout history currently in this app.")) return;
-    DATA = migrateExerciseData(parsed);
+    DATA = migrateToExerciseDatabase(migrateExerciseData(parsed));
     saveData(DATA);
     recordBackupDone();
     showToast("Data imported");
