@@ -184,7 +184,7 @@ html,body{height:100%;}
    installed, full-screen app, not a browser document, so a visible
    scrollbar reads as chrome that doesn't belong. Scrolling itself is
    untouched, just the visual track/thumb. */
-html{scrollbar-width:none; -ms-overflow-style:none;}
+html{scrollbar-width:none; -ms-overflow-style:none; overscroll-behavior-y:none;}
 html::-webkit-scrollbar{display:none; width:0; height:0;}
 body{
   margin:0;
@@ -243,14 +243,25 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
    where the full "Train today" header has scrolled out of view, then
    fades/slides in as a persistent minimal bar (brand mark + settings),
    and reverses the moment you scroll back near the top. Mirrors a
-   collapsing large-title pattern rather than being on screen at all times. */
+   collapsing large-title pattern rather than being on screen at all
+   times. Opacity/transform are set directly from JS every scroll frame
+   (see updateStickyHeader) rather than via a CSS transition — a
+   transition here would lag a beat behind each update instead of
+   tracking the scroll gesture 1:1, which is what actually reads as
+   "smooth" rather than a delayed pop. */
 .sticky-header-bar{
-  position:fixed; top:0; left:0; right:0; z-index:35;
+  position:fixed; top:-100px; left:0; right:0; z-index:35;
   background:var(--bg); border-bottom:1px solid var(--border);
-  opacity:0; transform:translateY(-6px); pointer-events:none;
-  transition:opacity .2s ease, transform .2s ease;
+  opacity:0; transform:translateY(-10px) scale(0.985); pointer-events:none;
+  /* The extra -100px/+100px above cancel out for where the content actually
+     sits, but they extend this bar's background 100px above the visible
+     viewport. Without that, an elastic overscroll/rubber-band bounce at
+     the top (iOS Safari in particular) can momentarily reveal page
+     background above this bar — reading as a gap between it and the
+     status bar — since a plain top:0 fixed element doesn't paint above
+     the viewport it's pinned to. */
+  padding-top:100px;
 }
-.sticky-header-bar.visible{ opacity:1; transform:translateY(0); pointer-events:auto; }
 .sticky-header-inner{
   max-width:520px; margin:0 auto;
   padding:calc(env(safe-area-inset-top, 0px) + 12px) 20px 12px;
@@ -2184,6 +2195,7 @@ function nav(r){
   history.pushState({route:r}, "", "");
   render();
   window.scrollTo(0,0);
+  updateStickyHeader();
 }
 
 /* Navigates to a route right after a confirm-dialog's "Yes" handler runs.
@@ -2203,6 +2215,7 @@ function navAfterModalClose(r){
     history.replaceState({route:r}, "", "");
     render();
     window.scrollTo(0,0);
+    updateStickyHeader();
   };
   window.addEventListener("popstate", settle);
   setTimeout(settle, 50);
@@ -3922,16 +3935,22 @@ function viewProgressList(){
   const muscles = getMuscleGroups();
   const list = getExercises()
     .filter(e => e.name.toLowerCase().includes(progressSearch.toLowerCase()))
-    .filter(e => !progressMuscleFilter || e.muscle === progressMuscleFilter);
-  list.forEach(ex=>{
-    const h = getExerciseHistory(ex.id);
-    const last = h.length ? h[h.length-1] : null;
+    .filter(e => !progressMuscleFilter || e.muscle === progressMuscleFilter)
+    .map(e => ({ ex: e, history: getExerciseHistory(e.id) }))
+    // Most-logged exercises first (so the ones you actually train surface
+    // to the top), falling back to alphabetical for ties — which in
+    // practice means every exercise with zero sessions (the vast
+    // majority of a 448-exercise library) still lists A→Z, so nothing
+    // logged yet is still easy to find.
+    .sort((a, b) => b.history.length - a.history.length || a.ex.name.localeCompare(b.ex.name));
+  list.forEach(({ex, history})=>{
+    const last = history.length ? history[history.length-1] : null;
     blocks += `
       <div class="ex-row" onclick="detailBackTarget={name:'progress'}; nav({name:'detail', exId:'${ex.id}'})">
         <div>
           <div class="en">${ex.name}</div>
           ${muscleTag(ex)}
-          <div class="es">${last ? `${h.length} session${h.length>1?"s":""} · last ${last.weight} lbs` : "No sessions yet"}</div>
+          <div class="es">${last ? `${history.length} session${history.length>1?"s":""} · last ${last.weight} lbs` : "No sessions yet"}</div>
         </div>
         <span class="chev">›</span>
       </div>`;
@@ -4537,15 +4556,34 @@ if("serviceWorker" in navigator){
 }
 
 /* Attached once, not per-render — the sticky header bar only exists in the
-   DOM while on Home, so this just no-ops on every other route. Threshold
-   is roughly where the full header's "Train today" title has scrolled
-   past, so the compact bar takes over right as the big one disappears
-   rather than leaving a gap or overlapping it. */
-window.addEventListener("scroll", ()=>{
+   DOM while on Home, so this just no-ops on every other route.
+
+   Deliberately NOT a binary "past 80px, add a class, let CSS transition
+   handle it" toggle: that reads as a pop no matter how the transition is
+   tuned, because the animation only starts once the threshold is crossed
+   — it's decoupled from the scroll gesture itself. Instead this
+   interpolates opacity/position directly from scroll position every
+   frame, over a range (40px–110px, roughly where the full header
+   scrolls out of view), so the bar fades and settles in lockstep with
+   the actual swipe rather than snapping in after the fact. */
+let stickyHeaderRAF = false;
+function updateStickyHeader(){
+  stickyHeaderRAF = false;
   const bar = document.getElementById("stickyHeaderBar");
   if(!bar) return;
-  if(window.scrollY > 80) bar.classList.add("visible");
-  else bar.classList.remove("visible");
+  const startY = 40, endY = 110;
+  const raw = (window.scrollY - startY) / (endY - startY);
+  const progress = Math.max(0, Math.min(1, raw));
+  // ease-out curve so it settles gently rather than tracking linearly
+  const eased = 1 - Math.pow(1 - progress, 2);
+  bar.style.opacity = eased;
+  bar.style.transform = `translateY(${(1 - eased) * -10}px) scale(${0.985 + eased * 0.015})`;
+  bar.style.pointerEvents = progress > 0.05 ? "auto" : "none";
+}
+window.addEventListener("scroll", ()=>{
+  if(stickyHeaderRAF) return;
+  stickyHeaderRAF = true;
+  requestAnimationFrame(updateStickyHeader);
 }, {passive:true});
 
 restoreActiveSessionIfAny();
