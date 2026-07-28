@@ -350,8 +350,9 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
   background:var(--bg-card); border:1px solid var(--border);
   border-radius:var(--radius-lg); padding:16px;
 }
-.calendar-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px;}
-.cal-month-viewport{position:relative; overflow:hidden; flex:1; text-align:center;}
+.calendar-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+.cal-nav-group{display:flex; gap:8px;}
+.cal-month-viewport{position:relative; text-align:center; margin-bottom:10px;}
 .cal-month-inner{width:100%;}
 .calendar-month{font-family:var(--font-display); font-weight:800; font-size:16px; letter-spacing:.5px; text-transform:uppercase;}
 .calendar-sub-group{text-align:right;}
@@ -382,7 +383,6 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
   margin-right:5px; vertical-align:-2px;
 }
 .pr-star-inline svg{width:100%; height:100%;}
-.calendar-head{position:relative;}
 .cal-nav-btn{
   background:var(--bg-card-2); border:1px solid var(--border); color:var(--text);
   width:30px; height:30px; border-radius:9px; font-size:16px; line-height:1;
@@ -390,7 +390,6 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
 }
 .cal-nav-btn:active{transform:scale(0.9);}
 .cal-today-link{font-size:10.5px; color:var(--accent-hi); font-weight:700; margin-top:2px; cursor:pointer;}
-.cal-hint{text-align:center; font-size:10.5px; color:var(--text-faint); margin-top:12px;}
 
 /* Year view */
 .year-nav{display:flex; align-items:center; justify-content:center; gap:18px; margin:14px 0 4px;}
@@ -2280,12 +2279,36 @@ function buildCalMonthLabel(year, month){
    back to a normal render() if the expected DOM isn't there for any
    reason, so this never leaves the calendar stuck. */
 let calWipeInFlight = { grid: null, month: null };
+let calMonthAnimGen = 0;
+function wipeMonthLabel(){
+  // Text doesn't wipe cleanly the way discrete grid cells do — a clip-path
+  // reveal on a single line of text just shows two different strings
+  // sharing space, which read as overlapping/garbled. Instead the old
+  // label fades fully out, THEN the new one fades in — never both
+  // visible at once. A generation counter lets a rapid second swipe
+  // safely take over from an in-flight fade without any special
+  // teardown: the stale callback just checks it's still current and
+  // no-ops if not.
+  const el = document.getElementById("calMonthInner");
+  if(!el) return;
+  const myGen = ++calMonthAnimGen;
+  el.style.transition = "opacity .13s ease";
+  el.style.opacity = "0";
+  setTimeout(()=>{
+    if(myGen !== calMonthAnimGen) return;
+    el.innerHTML = buildCalMonthLabel(calendarViewYear, calendarViewMonth);
+    requestAnimationFrame(()=>{
+      if(myGen !== calMonthAnimGen) return;
+      el.style.transition = "opacity .16s ease";
+      el.style.opacity = "1";
+    });
+  }, 130);
+}
+
 function wipeCalendarTo(direction){
   const gridViewport = document.getElementById("calGridViewport");
-  const monthViewport = document.getElementById("calMonthViewport");
   const oldGrid = document.getElementById("calGrid");
-  const oldMonth = document.getElementById("calMonthInner");
-  if(!gridViewport || !monthViewport || !oldGrid || !oldMonth){ render(); return; }
+  if(!gridViewport || !oldGrid){ render(); return; }
 
   const revealFrom = direction === "next" ? "right" : "left";
   const startClip = revealFrom === "right" ? "inset(0 0 0 100%)" : "inset(0 100% 0 0)";
@@ -2333,7 +2356,7 @@ function wipeCalendarTo(direction){
   };
 
   wipeIn("grid", gridViewport, oldGrid, buildCalGridCells(calendarViewYear, calendarViewMonth));
-  wipeIn("month", monthViewport, oldMonth, buildCalMonthLabel(calendarViewYear, calendarViewMonth));
+  wipeMonthLabel();
 }
 
 function changeCalendarMonth(delta){
@@ -2357,18 +2380,11 @@ function calendarTouchMove(e){
   const t = e.touches[0];
   const dx = t.clientX - calTouchStartX, dy = t.clientY - calTouchStartY;
   // Lock the gesture horizontal once it's clearly a sideways drag, so the
-  // page doesn't also scroll vertically underneath the swipe.
+  // page doesn't also scroll vertically underneath the swipe. The card
+  // itself never moves — only the wipe transition (triggered on release)
+  // shows any motion, so the block stays put throughout the gesture.
   if(Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)){
     e.preventDefault();
-    // Live drag-follow: a small, heavily-damped, capped nudge so the swipe
-    // feels responsive while you're dragging — released into the actual
-    // wipe (or sprung back) in calendarTouchEnd.
-    const card = document.getElementById("calendarCard");
-    if(card){
-      const drag = Math.max(-18, Math.min(18, dx * 0.2));
-      card.style.transition = "none";
-      card.style.transform = `translateX(${drag}px)`;
-    }
   }
 }
 function calendarTouchEnd(e){
@@ -2376,23 +2392,10 @@ function calendarTouchEnd(e){
   const t = e.changedTouches[0];
   const dx = t.clientX - calTouchStartX, dy = t.clientY - calTouchStartY;
   calTouchStartX = null; calTouchStartY = null;
-  const card = document.getElementById("calendarCard");
   if(Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.5){
-    if(card){ card.style.transition = ""; card.style.transform = ""; }
     changeCalendarMonth(dx < 0 ? 1 : -1);
     calSwipeHandled = true;
     e.preventDefault();
-  }else if(card){
-    // Didn't clear the swipe threshold — spring back to center instead of
-    // changing months, so a hesitant or short drag doesn't feel like a
-    // dead end.
-    card.style.transition = "transform .22s cubic-bezier(.34,1.56,.64,1)";
-    card.style.transform = "translateX(0)";
-    card.addEventListener("transitionend", function handler(){
-      card.style.transition = "";
-      card.style.transform = "";
-      card.removeEventListener("transitionend", handler);
-    });
   }
 }
 /* Tapping the calendar card anywhere that ISN'T a specific day cell (or the
@@ -2413,21 +2416,22 @@ function renderCalendar(){
     <div class="calendar-card" id="calendarCard" onclick="calendarBackgroundTap()"
       ontouchstart="calendarTouchStart(event)" ontouchmove="calendarTouchMove(event)" ontouchend="calendarTouchEnd(event)">
       <div class="calendar-head">
-        <button class="cal-nav-btn" onclick="event.stopPropagation(); changeCalendarMonth(-1)" aria-label="Previous month">‹</button>
-        <div class="cal-month-viewport" id="calMonthViewport">
-          <div class="cal-month-inner" id="calMonthInner">${buildCalMonthLabel(year, month)}</div>
+        <div class="cal-nav-group">
+          <button class="cal-nav-btn" onclick="event.stopPropagation(); changeCalendarMonth(-1)" aria-label="Previous month">‹</button>
+          <button class="cal-nav-btn" onclick="event.stopPropagation(); changeCalendarMonth(1)" aria-label="Next month">›</button>
         </div>
-        <button class="cal-nav-btn" onclick="event.stopPropagation(); changeCalendarMonth(1)" aria-label="Next month">›</button>
+        <div class="calendar-sub-group">
+          ${streak > 0 ? `<div class="calendar-streak">🔥 ${streak} day${streak===1?"":"s"}</div>` : ""}
+          <div class="calendar-sub">${completed.size} day${completed.size===1?"":"s"} trained</div>
+        </div>
       </div>
-      <div class="calendar-sub-group" style="text-align:center; margin-bottom:10px;">
-        ${streak > 0 ? `<span class="calendar-streak">🔥 ${streak} day${streak===1?"":"s"}</span>` : ""}
-        <span class="calendar-sub">${completed.size} day${completed.size===1?"":"s"} trained</span>
+      <div class="cal-month-viewport" id="calMonthViewport">
+        <div class="cal-month-inner" id="calMonthInner">${buildCalMonthLabel(year, month)}</div>
       </div>
       <div class="cal-weekdays"><div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div></div>
       <div class="cal-grid-viewport" id="calGridViewport">
         <div class="cal-grid" id="calGrid">${buildCalGridCells(year, month)}</div>
       </div>
-      <div class="cal-hint">Swipe to change months · tap here for year view</div>
     </div>
   `;
 }
