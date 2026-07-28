@@ -180,6 +180,12 @@ html[data-theme="midnight-mint"]{
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 html,body{height:100%;}
+/* Hide the native scrollbar/scroll indicator everywhere — this is an
+   installed, full-screen app, not a browser document, so a visible
+   scrollbar reads as chrome that doesn't belong. Scrolling itself is
+   untouched, just the visual track/thumb. */
+html{scrollbar-width:none; -ms-overflow-style:none;}
+html::-webkit-scrollbar{display:none; width:0; height:0;}
 body{
   margin:0;
   background:var(--bg);
@@ -187,7 +193,9 @@ body{
   font-family:var(--font-body);
   overscroll-behavior-y:none;
   -webkit-font-smoothing:antialiased;
+  scrollbar-width:none; -ms-overflow-style:none;
 }
+body::-webkit-scrollbar{display:none; width:0; height:0;}
 #app{
   max-width:520px;
   margin:0 auto;
@@ -351,11 +359,14 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
   border-radius:var(--radius-lg); padding:16px;
 }
 .calendar-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
-.cal-nav-group{display:flex; gap:8px;}
-.cal-month-viewport{position:relative; text-align:center; margin-bottom:10px;}
+.cal-nav-group{display:flex; gap:8px; flex-shrink:0;}
+.cal-month-viewport{position:relative; text-align:center; flex:1; min-width:0; padding:0 8px;}
 .cal-month-inner{width:100%;}
-.calendar-month{font-family:var(--font-display); font-weight:800; font-size:16px; letter-spacing:.5px; text-transform:uppercase;}
-.calendar-sub-group{text-align:right;}
+.calendar-month{
+  font-family:var(--font-display); font-weight:800; font-size:15px; letter-spacing:.3px; text-transform:uppercase;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.calendar-sub-group{text-align:right; flex-shrink:0;}
 .calendar-streak{font-size:12px; font-weight:800; color:var(--accent-hi);}
 .calendar-sub{font-size:11px; color:var(--text-faint); margin-top:1px;}
 .cal-weekdays{display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:6px;}
@@ -823,7 +834,9 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
   max-height:78vh; overflow-y:auto; border-top:1px solid var(--border);
   box-shadow:0 -12px 32px rgba(0,0,0,0.4);
   animation:sheetSlideUp .28s cubic-bezier(.16,1,.3,1) both;
+  scrollbar-width:none; -ms-overflow-style:none;
 }
+.sheet::-webkit-scrollbar{display:none; width:0; height:0;}
 .sheet-handle{width:36px;height:4px;background:var(--border); border-radius:2px; margin:6px auto 16px;}
 .sheet-title{font-family:var(--font-display); font-weight:800; font-size:20px; text-transform:uppercase; margin-bottom:14px;}
 .confirm-msg{color:var(--text-dim); font-size:14.5px; line-height:1.5; margin:-2px 0 20px;}
@@ -2420,13 +2433,13 @@ function renderCalendar(){
           <button class="cal-nav-btn" onclick="event.stopPropagation(); changeCalendarMonth(-1)" aria-label="Previous month">‹</button>
           <button class="cal-nav-btn" onclick="event.stopPropagation(); changeCalendarMonth(1)" aria-label="Next month">›</button>
         </div>
+        <div class="cal-month-viewport" id="calMonthViewport">
+          <div class="cal-month-inner" id="calMonthInner">${buildCalMonthLabel(year, month)}</div>
+        </div>
         <div class="calendar-sub-group">
           ${streak > 0 ? `<div class="calendar-streak">🔥 ${streak} day${streak===1?"":"s"}</div>` : ""}
           <div class="calendar-sub">${completed.size} day${completed.size===1?"":"s"} trained</div>
         </div>
-      </div>
-      <div class="cal-month-viewport" id="calMonthViewport">
-        <div class="cal-month-inner" id="calMonthInner">${buildCalMonthLabel(year, month)}</div>
       </div>
       <div class="cal-weekdays"><div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div></div>
       <div class="cal-grid-viewport" id="calGridViewport">
