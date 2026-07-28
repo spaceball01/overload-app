@@ -213,6 +213,39 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
   margin-right:5px; vertical-align:-2px;
 }
 .pr-star-inline svg{width:100%; height:100%;}
+.calendar-head{position:relative;}
+.cal-nav-btn{
+  background:var(--bg-card-2); border:1px solid var(--border); color:var(--text);
+  width:30px; height:30px; border-radius:9px; font-size:16px; line-height:1;
+  display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0;
+}
+.cal-nav-btn:active{transform:scale(0.9);}
+.cal-today-link{font-size:10.5px; color:var(--accent-hi); font-weight:700; margin-top:2px; cursor:pointer;}
+.cal-hint{text-align:center; font-size:10.5px; color:var(--text-faint); margin-top:12px;}
+
+/* Year view */
+.year-nav{display:flex; align-items:center; justify-content:center; gap:18px; margin:14px 0 4px;}
+.year-nav-label{font-family:var(--font-display); font-weight:800; font-size:20px; letter-spacing:.5px; min-width:64px; text-align:center;}
+.year-summary{text-align:center; font-size:12px; color:var(--text-faint); margin-bottom:16px;}
+.year-grid{display:flex; flex-direction:column; gap:14px; padding:0 20px 20px;}
+.mini-month-card{background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-md); padding:12px;}
+.mini-month-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;}
+.mini-month-name{font-family:var(--font-display); font-weight:800; font-size:12.5px; letter-spacing:.5px; text-transform:uppercase;}
+.mini-month-count{font-size:10.5px; color:var(--text-faint);}
+.mini-weekdays{display:grid; grid-template-columns:repeat(7,1fr); gap:3px; margin-bottom:4px;}
+.mini-weekdays div{text-align:center; font-size:8px; color:var(--text-faint); letter-spacing:.3px;}
+.mini-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:3px;}
+.mini-day{
+  position:relative; aspect-ratio:1; border-radius:5px; display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-mono); font-size:9.5px; color:var(--text-dim); background:var(--bg-card-2);
+  border:1px solid transparent; cursor:pointer;
+}
+.mini-day:active{transform:scale(0.88);}
+.mini-day.empty{background:none; cursor:default;}
+.mini-day.empty:active{transform:none;}
+.mini-day.done{background:var(--green); color:#0C2318; font-weight:700;}
+.mini-day.today{border-color:var(--accent);}
+.mini-pr-dot{position:absolute; top:1px; right:1px; width:4px; height:4px; border-radius:50%; background:var(--accent-hi);}
 
 /* Upcoming plans */
 .plan-row{
@@ -663,6 +696,17 @@ button, .session-row, .plan-row, .pick-row, .exercise-card-collapsed,
   border-radius:var(--radius-md); padding:12px 16px; display:flex; align-items:center; gap:10px;
 }
 .prog-search input{flex:1; background:none; border:none; color:var(--text); font-size:14.5px;}
+.filter-bar{display:flex; gap:10px; margin:0 20px 16px;}
+.filter-bar .prog-search{margin:0; flex:1;}
+.muscle-select-wrap{
+  background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-md);
+  display:flex; align-items:center; padding:0 12px; flex-shrink:0; max-width:44%;
+}
+.muscle-select{
+  background:none; border:none; color:var(--text); font-size:13px; padding:12px 0;
+  max-width:100%; -webkit-appearance:none; appearance:none;
+}
+.muscle-select:focus{outline:none;}
 .cat-block{margin-bottom:6px;}
 .cat-title{font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--accent); font-weight:800; padding:0 20px; margin:18px 0 8px;}
 .ex-row{
@@ -1530,6 +1574,11 @@ function recordBackupDone(){
 
 /* ---- Exercises & Templates (CRUD over the global exercise/template lists) ---- */
 function getExercises(){ return [...DATA.exercises].sort((a,b)=> a.name.localeCompare(b.name)); }
+function getMuscleGroups(){
+  const set = new Set();
+  DATA.exercises.forEach(ex=>{ if(ex.muscle) set.add(ex.muscle); });
+  return Array.from(set).sort();
+}
 function findExercise(id){ return DATA.exercises.find(e=>e.id===id) || null; }
 function addExercise(name, increment, muscle, measureType){
   const ex = {id:uid(), name:name.trim(), increment: increment || 5, muscle: muscle || "", measureType: measureType || "sets_reps"};
@@ -1896,6 +1945,7 @@ function render(){
   else if(route.name === "progress") html = viewProgressList();
   else if(route.name === "session") html = viewSessionDetail(route.workoutId);
   else if(route.name === "day") html = viewDayDetail(route.date);
+  else if(route.name === "yearView") html = viewYearDetail(route.year);
   else if(route.name === "detail") html = viewExerciseDetail(route.exId);
   else if(route.name === "manage") html = viewManage();
   else if(route.name === "templateEdit") html = viewTemplateEdit();
@@ -1942,16 +1992,65 @@ const ICONS = {
 };
 
 /* ============ HOME ============ */
+let calendarViewYear = new Date().getFullYear();
+let calendarViewMonth = new Date().getMonth(); // 0-indexed
+let calSwipeHandled = false;
+let calTouchStartX = null, calTouchStartY = null;
+
+function changeCalendarMonth(delta){
+  calendarViewMonth += delta;
+  if(calendarViewMonth < 0){ calendarViewMonth = 11; calendarViewYear--; }
+  else if(calendarViewMonth > 11){ calendarViewMonth = 0; calendarViewYear++; }
+  render();
+}
+function jumpCalendarToToday(){
+  calendarViewYear = new Date().getFullYear();
+  calendarViewMonth = new Date().getMonth();
+  render();
+}
+function calendarTouchStart(e){
+  const t = e.touches[0];
+  calTouchStartX = t.clientX; calTouchStartY = t.clientY;
+  calSwipeHandled = false;
+}
+function calendarTouchMove(e){
+  if(calTouchStartX === null) return;
+  const t = e.touches[0];
+  const dx = t.clientX - calTouchStartX, dy = t.clientY - calTouchStartY;
+  // Lock the gesture horizontal once it's clearly a sideways drag, so the
+  // page doesn't also scroll vertically underneath the swipe.
+  if(Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)){ e.preventDefault(); }
+}
+function calendarTouchEnd(e){
+  if(calTouchStartX === null) return;
+  const t = e.changedTouches[0];
+  const dx = t.clientX - calTouchStartX, dy = t.clientY - calTouchStartY;
+  calTouchStartX = null; calTouchStartY = null;
+  if(Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.5){
+    changeCalendarMonth(dx < 0 ? 1 : -1);
+    calSwipeHandled = true;
+    e.preventDefault();
+  }
+}
+/* Tapping the calendar card anywhere that ISN'T a specific day cell (or the
+   month-nav arrows, which stop propagation) opens the full year view. Day
+   cells and nav buttons stop propagation so only genuine "background" taps
+   (padding, weekday labels, gaps between cells) reach this handler. */
+function calendarBackgroundTap(){
+  if(calSwipeHandled){ calSwipeHandled = false; return; }
+  nav({name:"yearView", year: calendarViewYear});
+}
+
 function renderCalendar(){
-  const now = new Date();
-  const year = now.getFullYear(), month = now.getMonth();
+  const year = calendarViewYear, month = calendarViewMonth;
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month+1, 0).getDate();
   const completed = getCompletedDatesSet();
   const prDates = getPRDatesSet(getAllPRKeys());
   const todayKey = todayStr();
-  const monthName = now.toLocaleDateString(undefined, {month:"long", year:"numeric"});
+  const monthName = new Date(year, month, 1).toLocaleDateString(undefined, {month:"long", year:"numeric"});
   const streak = getCurrentStreak();
+  const isCurrentMonth = (year === new Date().getFullYear() && month === new Date().getMonth());
 
   let cells = "";
   for(let i=0;i<firstDay;i++) cells += `<div class="cal-day empty"></div>`;
@@ -1961,20 +2060,27 @@ function renderCalendar(){
     if(completed.has(key)) classes.push("done");
     if(key === todayKey) classes.push("today");
     const star = prDates.has(key) ? `<span class="cal-pr-star">${ICONS.star}</span>` : "";
-    cells += `<div class="${classes.join(' ')}" onclick="nav({name:'day', date:'${key}'})">${star}${d}</div>`;
+    cells += `<div class="${classes.join(' ')}" onclick="event.stopPropagation(); nav({name:'day', date:'${key}'})">${star}${d}</div>`;
   }
 
   return `
-    <div class="calendar-card">
+    <div class="calendar-card" id="calendarCard" onclick="calendarBackgroundTap()"
+      ontouchstart="calendarTouchStart(event)" ontouchmove="calendarTouchMove(event)" ontouchend="calendarTouchEnd(event)">
       <div class="calendar-head">
-        <div class="calendar-month">${monthName}</div>
-        <div class="calendar-sub-group">
-          ${streak > 0 ? `<div class="calendar-streak">🔥 ${streak} day${streak===1?"":"s"}</div>` : ""}
-          <div class="calendar-sub">${completed.size} day${completed.size===1?"":"s"} trained</div>
+        <button class="cal-nav-btn" onclick="event.stopPropagation(); changeCalendarMonth(-1)" aria-label="Previous month">‹</button>
+        <div style="text-align:center;">
+          <div class="calendar-month">${monthName}</div>
+          ${!isCurrentMonth ? `<div class="cal-today-link" onclick="event.stopPropagation(); jumpCalendarToToday()">Jump to today</div>` : ""}
         </div>
+        <button class="cal-nav-btn" onclick="event.stopPropagation(); changeCalendarMonth(1)" aria-label="Next month">›</button>
+      </div>
+      <div class="calendar-sub-group" style="text-align:center; margin-bottom:10px;">
+        ${streak > 0 ? `<span class="calendar-streak">🔥 ${streak} day${streak===1?"":"s"}</span>` : ""}
+        <span class="calendar-sub">${completed.size} day${completed.size===1?"":"s"} trained</span>
       </div>
       <div class="cal-weekdays"><div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div></div>
       <div class="cal-grid">${cells}</div>
+      <div class="cal-hint">Swipe to change months · tap here for year view</div>
     </div>
   `;
 }
@@ -2050,7 +2156,7 @@ function viewHome(){
       <button class="finish-btn" style="margin-top:0;" onclick="nav({name:'startWorkout'})">Start Workout</button>
     </div>
     <div class="section">
-      <div class="section-label">This month</div>
+      <div class="section-label">Training calendar</div>
       ${renderCalendar()}
     </div>
     <div class="section">
@@ -3408,9 +3514,13 @@ function deleteTemplateFromEditor(){
 
 /* ============ PROGRESS LIST ============ */
 let progressSearch = "";
+let progressMuscleFilter = "";
 function viewProgressList(){
   let blocks = "";
-  const list = getExercises().filter(e => e.name.toLowerCase().includes(progressSearch.toLowerCase()));
+  const muscles = getMuscleGroups();
+  const list = getExercises()
+    .filter(e => e.name.toLowerCase().includes(progressSearch.toLowerCase()))
+    .filter(e => !progressMuscleFilter || e.muscle === progressMuscleFilter);
   list.forEach(ex=>{
     const h = getExerciseHistory(ex.id);
     const last = h.length ? h[h.length-1] : null;
@@ -3418,6 +3528,7 @@ function viewProgressList(){
       <div class="ex-row" onclick="detailBackTarget={name:'progress'}; nav({name:'detail', exId:'${ex.id}'})">
         <div>
           <div class="en">${ex.name}</div>
+          ${muscleTag(ex)}
           <div class="es">${last ? `${h.length} session${h.length>1?"s":""} · last ${last.weight} lbs` : "No sessions yet"}</div>
         </div>
         <span class="chev">›</span>
@@ -3429,23 +3540,98 @@ function viewProgressList(){
     <div class="top" style="padding-bottom:4px;">
       <div class="page-title">Progress</div>
     </div>
-    <div class="prog-search" style="margin-top:16px;">
-      <input placeholder="Search exercises" value="${progressSearch}" oninput="progressSearch=this.value; render();">
+    <div class="filter-bar" style="margin-top:16px;">
+      <div class="prog-search">
+        <input placeholder="Search exercises" value="${progressSearch}" oninput="progressSearch=this.value; render();">
+      </div>
+      <div class="muscle-select-wrap">
+        <select class="muscle-select" onchange="progressMuscleFilter=this.value; render();">
+          <option value="">All Muscles</option>
+          ${muscles.map(m=>`<option value="${escapeHtml(m)}" ${m===progressMuscleFilter?"selected":""}>${escapeHtml(m)}</option>`).join("")}
+        </select>
+      </div>
     </div>
     ${blocks}
+  `;
+}
+
+/* ============ YEAR VIEW ============ */
+function viewYearDetail(year){
+  year = Number(year) || new Date().getFullYear();
+  const completed = getCompletedDatesSet();
+  const prDates = getPRDatesSet(getAllPRKeys());
+  const todayKey = todayStr();
+
+  let monthsHtml = "";
+  for(let m=0; m<12; m++){
+    const firstDay = new Date(year, m, 1).getDay();
+    const daysInMonth = new Date(year, m+1, 0).getDate();
+    const monthName = new Date(year, m, 1).toLocaleDateString(undefined,{month:"long"});
+    let cells = "";
+    let trainedCount = 0;
+    for(let i=0;i<firstDay;i++) cells += `<div class="mini-day empty"></div>`;
+    for(let d=1; d<=daysInMonth; d++){
+      const key = `${year}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const classes = ["mini-day"];
+      if(completed.has(key)){ classes.push("done"); trainedCount++; }
+      if(key === todayKey) classes.push("today");
+      const star = prDates.has(key) ? `<span class="mini-pr-dot"></span>` : "";
+      cells += `<div class="${classes.join(' ')}" onclick="nav({name:'day', date:'${key}'})">${d}${star}</div>`;
+    }
+    monthsHtml += `
+      <div class="mini-month-card">
+        <div class="mini-month-head">
+          <span class="mini-month-name">${monthName}</span>
+          <span class="mini-month-count">${trainedCount ? `${trainedCount} day${trainedCount===1?"":"s"}` : ""}</span>
+        </div>
+        <div class="mini-weekdays"><div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div></div>
+        <div class="mini-grid">${cells}</div>
+      </div>`;
+  }
+
+  const yearTotal = DATA.workouts.filter(w => workoutStatus(w)==="completed" && new Date(w.date).getFullYear()===year).length;
+
+  return `
+    <div class="bar-top">
+      <div class="back-btn" onclick="nav({name:'home'})">${ICONS.back}</div>
+      <div class="bar-title">Year View</div>
+    </div>
+    <div class="year-nav">
+      <button class="cal-nav-btn" onclick="nav({name:'yearView', year:${year-1}})" aria-label="Previous year">‹</button>
+      <div class="year-nav-label">${year}</div>
+      <button class="cal-nav-btn" onclick="nav({name:'yearView', year:${year+1}})" aria-label="Next year">›</button>
+    </div>
+    <div class="year-summary">${yearTotal} session${yearTotal===1?"":"s"} logged in ${year}</div>
+    <div class="year-grid">${monthsHtml}</div>
   `;
 }
 
 /* ============ DAY DETAIL ============ */
 function viewDayDetail(dateKey){
   const prSet = getAllPRKeys();
-  const dayWorkouts = DATA.workouts
-    .filter(w => workoutStatus(w) === "completed" && dateKeyLocal(new Date(w.date)) === dateKey)
+  const allDayWorkouts = DATA.workouts
+    .filter(w => dateKeyLocal(new Date(w.date)) === dateKey)
     .sort((a,b)=> new Date(b.date)-new Date(a.date));
+  const dayWorkouts = allDayWorkouts.filter(w => workoutStatus(w) === "completed");
+  const plannedWorkouts = allDayWorkouts.filter(w => workoutStatus(w) !== "completed");
 
   const [y,m,d] = dateKey.split("-").map(Number);
   const dateObj = new Date(y, m-1, d);
   const title = dateObj.toLocaleDateString(undefined,{weekday:"long", month:"long", day:"numeric"});
+
+  let plans = "";
+  plannedWorkouts.forEach(w=>{
+    const doneCount = w.entries.filter(e=>e.status!==null).length;
+    plans += `
+      <div class="plan-row" onclick="continuePlanned('${w.id}')">
+        <span class="plan-badge">Planned</span>
+        <div class="plan-main">
+          <div class="plan-type">${templateLabel(w.type)} · ${w.entries.length} exercise${w.entries.length>1?"s":""}</div>
+          <div class="plan-date">${doneCount>0 ? `${doneCount} of ${w.entries.length} logged` : "Not started yet"}</div>
+        </div>
+        <button class="session-del" onclick="event.stopPropagation(); deleteWorkout('${w.id}')" aria-label="Delete plan">${ICONS.trash}</button>
+      </div>`;
+  });
 
   let sessions = "";
   if(dayWorkouts.length === 0){
@@ -3474,7 +3660,9 @@ function viewDayDetail(dateKey){
       <div class="back-btn" onclick="nav({name:'home'})">${ICONS.back}</div>
       <div class="bar-title">${title}</div>
     </div>
-    <div class="section" style="margin-top:14px;">
+    ${plans ? `<div class="section" style="margin-top:14px;"><div class="section-label">Planned</div>${plans}</div>` : ""}
+    <div class="section" style="margin-top:${plans ? "6" : "14"}px;">
+      ${plans ? `<div class="section-label">Completed</div>` : ""}
       ${sessions}
     </div>
   `;
@@ -3659,8 +3847,13 @@ function renderChart(history, valueKey){
 }
 
 /* ============ MANAGE ============ */
+let manageSearch = "";
+let manageMuscleFilter = "";
 function viewManage(){
-  const list = getExercises();
+  const muscles = getMuscleGroups();
+  const list = getExercises()
+    .filter(ex => ex.name.toLowerCase().includes(manageSearch.toLowerCase()))
+    .filter(ex => !manageMuscleFilter || ex.muscle === manageMuscleFilter);
   let blocks = "";
   list.forEach(ex=>{
     blocks += `
@@ -3676,7 +3869,7 @@ function viewManage(){
         </div>
       </div>`;
   });
-  if(!list.length) blocks = `<div class="empty-state" style="margin:0 20px;">No exercises yet. Add your first one below.</div>`;
+  if(!list.length) blocks = `<div class="empty-state" style="margin:0 20px;">No exercises match your search.</div>`;
   blocks += `
     <div class="manage-add">
       <input id="add-exercise-input" placeholder="New exercise name" style="flex:1; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px 14px; font-size:13.5px;">
@@ -3707,6 +3900,17 @@ function viewManage(){
       </label>
     </div>
     <div class="section-label" style="padding:0 20px; margin-top:22px;">Manage your exercise library</div>
+    <div class="filter-bar">
+      <div class="prog-search">
+        <input placeholder="Search exercises" value="${manageSearch}" oninput="manageSearch=this.value; render();">
+      </div>
+      <div class="muscle-select-wrap">
+        <select class="muscle-select" onchange="manageMuscleFilter=this.value; render();">
+          <option value="">All Muscles</option>
+          ${muscles.map(m=>`<option value="${escapeHtml(m)}" ${m===manageMuscleFilter?"selected":""}>${escapeHtml(m)}</option>`).join("")}
+        </select>
+      </div>
+    </div>
     ${blocks}
   `;
 }
@@ -3812,7 +4016,7 @@ function importDataFile(input){
 
 /* ============ NAV / TOAST ============ */
 function viewBottomNav(showResumeBar){
-  const active = (route.name === "log" || route.name === "session" || route.name === "day" || route.name === "templateEdit" || route.name === "startWorkout") ? "home" : (route.name === "detail" ? "progress" : route.name);
+  const active = (route.name === "log" || route.name === "session" || route.name === "day" || route.name === "yearView" || route.name === "templateEdit" || route.name === "startWorkout") ? "home" : (route.name === "detail" ? "progress" : route.name);
   const resumeBar = showResumeBar ? `
     <div class="active-session-bar" onclick="nav({name:'log'})">
       <div class="active-session-dot"></div>
